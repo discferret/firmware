@@ -38,8 +38,8 @@
                      "HardwareProfile - xxx.h" file
 ********************************************************************/
 
-#ifndef HARDWARE_PROFILE_PIC18F87J50_PIM_H
-#define HARDWARE_PROFILE_PIC18F87J50_PIM_H
+#ifndef HARDWARE_PROFILE_H
+#define HARDWARE_PROFILE_H
 
     /*******************************************************************/
     /******** USB stack hardware selection options *********************/
@@ -59,7 +59,13 @@
     //circuit board, so the USE_SELF_POWER_SENSE_IO define should always be
     //commented for this hardware platform.
 
-    //#define USE_SELF_POWER_SENSE_IO
+	// -- USE_SELF_POWER_SENSE_IO --
+	// Defined if the USB device is capable of determining its power state
+	// (bus-powered or self-powered).
+//    #define USE_SELF_POWER_SENSE_IO
+	// Also set the I/O pin in use here (note that if USE_SELF_POWER_SENSE_IO is
+	// disabled, self_power will automagically get set to 1 and the I/O pin
+	// will be ignored...)
     #define tris_self_power     TRISAbits.TRISA2    // Input
     #if defined(USE_SELF_POWER_SENSE_IO)
     #define self_power          PORTAbits.RA2
@@ -67,7 +73,14 @@
     #define self_power          1
     #endif
 
-    //#define USE_USB_BUS_SENSE_IO		//JP1 must be in R-U position to use this feature on this board	
+	// -- USE_USB_BUS_SENSE_IO --
+	// Defined if the USB device is capable of sensing the state of the bus,
+	// i.e. Connected or Disconnected. That is, can the device detect whether
+	// VBUS = 5V?
+//    #define USE_USB_BUS_SENSE_IO
+	// Also set the I/O pin in use here (note that if USE_USB_BUS_SENSE_IO is
+	// disabled, self_power will automagically get set to 1 and the I/O pin
+	// will be ignored...)
     #define tris_usb_bus_sense  TRISBbits.TRISB5    // Input
     #if defined(USE_USB_BUS_SENSE_IO)
     #define USB_BUS_SENSE       PORTBbits.RB5
@@ -78,6 +91,10 @@
     //Uncomment this to make the output HEX of this project 
     //   to be able to be bootloaded using the HID bootloader
 	#define PROGRAMMABLE_WITH_USB_HID_BOOTLOADER		
+
+	// -- USB_INTERRUPT --
+	// Defined to make the USB interface run in Interrupt-Driven mode
+	#define USB_INTERRUPT
 
 
     /*******************************************************************/
@@ -95,14 +112,13 @@
     //  initialization functions for the board.  These defitions are only
     //  required in the stack provided demos.  They are not required in
     //  final application design.
-    #define DEMO_BOARD PIC18F87J50_PIM
-    #define PIC18F87J50_PIM
+	#define PLATFORM_DISCFERRET
     #define CLOCK_FREQ 48000000
     #define GetSystemClock()  CLOCK_FREQ   
     #define GetInstructionClock() CLOCK_FREQ   
-    
+
     /** LED ************************************************************/
-    #define mInitAllLEDs()      {LATE &= 0xFC; TRISE &= 0xFC; LATD &= 0xF3; TRISD &= 0xF3;}
+/*    #define mInitAllLEDs()      {LATE &= 0xFC; TRISE &= 0xFC; LATD &= 0xF3; TRISD &= 0xF3;}
     
     #define mLED_1              LATEbits.LATE0
     #define mLED_2              LATEbits.LATE1
@@ -128,26 +144,10 @@
     #define mLED_2_Toggle()     mLED_2 = !mLED_2;
     #define mLED_3_Toggle()     mLED_3 = !mLED_3;
     #define mLED_4_Toggle()     mLED_4 = !mLED_4;
-    
-    /** SWITCH *********************************************************/
-    #define mInitAllSwitches()  TRISBbits.TRISB4=1;
-    #define mInitSwitch2()      TRISBbits.TRISB4=1;
-    #define mInitSwitch3()      TRISBbits.TRISB4=1;
-    #define sw2                 PORTBbits.RB4
-    #define sw3                 PORTBbits.RB4
-    
-    /** POT ************************************************************/
-    #define mInitPOT()          {TRISAbits.TRISA0=1;			\
-    							 WDTCONbits.ADSHR = 1;			\
-    							 ANCON0bits.PCFG0 = 1;			\
-    							 WDTCONbits.ADSHR = 0;			\
-    							 ADCON0=0x01;					\
-    							 ADCON1=0xBE;}		// POT on HPC Explorer				
-    
-    /** I 2 C   T E M P   S E N S E *************************************/
-    #define	mInitI2CPins()		TRISC |= 0x18;		// RC3 and RC4 are I2C
-    
+*/
+
     /** I/O pin definitions ********************************************/
     #define INPUT_PIN 1
     #define OUTPUT_PIN 0
+
 #endif  //HARDWARE_PROFILE_PIC18F87J50_PIM_H
