@@ -172,7 +172,7 @@ ROM USB_DEVICE_DESCRIPTOR device_dsc=
     0x00,                   // Protocol code
     USB_EP0_BUFF_SIZE,          // Max packet size for EP0, see usb_config.h
     0x04D8,                 // Vendor ID: 0x04D8 is Microchip's Vendor ID
-    0x0204,                 // Product ID: 0x0204
+    0xFBBB,                 // Product ID: 0xFBBB: DiscFerret Product ID (sublicenced from MTI)
     0x0000,                 // Device release number in BCD format
     0x01,                   // Manufacturer string index
     0x02,                   // Product string index
@@ -227,15 +227,13 @@ sizeof(sd000),USB_DESCRIPTOR_STRING,{0x0409}};
 //Manufacturer string descriptor
 ROM struct{BYTE bLength;BYTE bDscType;WORD string[25];}sd001={
 sizeof(sd001),USB_DESCRIPTOR_STRING,
-{'M','i','c','r','o','c','h','i','p',' ',
-'T','e','c','h','n','o','l','o','g','y',' ','I','n','c','.'
+{'R','e','d',' ','F','o','x',' ','E','n','g','i','n','e','e','r','i','n','g'
 }};
 
 //Product string descriptor
-ROM struct{BYTE bLength;BYTE bDscType;WORD string[31];}sd002={
+ROM struct{BYTE bLength;BYTE bDscType;WORD string[33];}sd002={
 sizeof(sd002),USB_DESCRIPTOR_STRING,
-{'M','i','c','r','o','c','h','i','p',' ','L','i','b','u','s','b',
-' ','E','x','a','m','p','l','e',' ','D','e','v','i','c','e'}};
+{'D','i','s','c','F','e','r','r','e','t',' ','m','a','g','n','e','t','i','c',' ','d','i','s','c',' ','a','n','a','l','y','s','e','r'}};
 
 //Array of configuration descriptors
 ROM BYTE *ROM USB_CD_Ptr[]=
