@@ -92,10 +92,6 @@
     //   to be able to be bootloaded using the HID bootloader
 	#define PROGRAMMABLE_WITH_USB_HID_BOOTLOADER		
 
-	// -- USB_INTERRUPT --
-	// Defined to make the USB interface run in Interrupt-Driven mode
-	#define USB_INTERRUPT
-
 
     /*******************************************************************/
     /*******************************************************************/
