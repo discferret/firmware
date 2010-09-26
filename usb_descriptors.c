@@ -225,7 +225,7 @@ ROM struct{BYTE bLength;BYTE bDscType;WORD string[1];}sd000={
 sizeof(sd000),USB_DESCRIPTOR_STRING,{0x0409}};
 
 //Manufacturer string descriptor
-ROM struct{BYTE bLength;BYTE bDscType;WORD string[25];}sd001={
+ROM struct{BYTE bLength;BYTE bDscType;WORD string[19];}sd001={
 sizeof(sd001),USB_DESCRIPTOR_STRING,
 {'R','e','d',' ','F','o','x',' ','E','n','g','i','n','e','e','r','i','n','g'
 }};
