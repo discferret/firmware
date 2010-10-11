@@ -82,7 +82,6 @@
 unsigned char OUTPacket[64];	//User application buffer for receiving and holding OUT packets sent from the host
 unsigned char INPacket[64];		//User application buffer for sending IN packets to the host
 #pragma udata
-BOOL blinkStatusValid;
 USB_HANDLE USBGenericOutHandle;
 USB_HANDLE USBGenericInHandle;
 #pragma udata
@@ -94,7 +93,6 @@ void YourHighPriorityISRCode(void);
 void YourLowPriorityISRCode(void);
 void UserInit(void);
 void ProcessIO(void);
-void BlinkUSBStatus(void);
 
 /** VECTOR REMAPPING ***********************************************/
 #if defined(__18CXX)
@@ -416,8 +414,6 @@ void UserInit(void)
 	SSP1STAT = 0b01000000;		// CKE=1 (xmit on active->idle edge)
 	SSP1CON1 = 0b00100000;		// CKP=0 (clock is idle-low / active-high)
 								// and enable the MSSP
-
-//	blinkStatusValid = TRUE;	//Blink the normal USB state on the LEDs.
 }//end UserInit
 
 enum {
@@ -486,12 +482,6 @@ enum {
 void ProcessIO(void)
 {
 	int i;
-
-    //Blink the LEDs according to the USB device status, but only do so if the PC application isn't connected and controlling the LEDs.
-    if(blinkStatusValid)
-    {
-        BlinkUSBStatus();
-    }
 
     //User Application USB tasks below.
     //Note: The user application should not begin attempting to read/write over the USB
@@ -576,99 +566,6 @@ void ProcessIO(void)
         USBGenericOutHandle = USBGenRead(USBGEN_EP_NUM,(BYTE*)&OUTPacket,USBGEN_EP_SIZE);
     }
 }//end ProcessIO
-
-
-/********************************************************************
- * Function:        void BlinkUSBStatus(void)
- *
- * PreCondition:    None
- *
- * Input:           None
- *
- * Output:          None
- *
- * Side Effects:    None
- *
- * Overview:        BlinkUSBStatus turns on and off LEDs 
- *                  corresponding to the USB device state.
- *
- * Note:            mLED macros can be found in HardwareProfile.h
- *                  USBDeviceState is declared and updated in
- *                  usb_device.c.
- *******************************************************************/
-void BlinkUSBStatus(void)
-{
-#if 0
-    static WORD led_count=0;
-    
-    if(led_count == 0)led_count = 10000U;
-    led_count--;
-
-    #define mLED_Both_Off()         {mLED_1_Off();mLED_2_Off();}
-    #define mLED_Both_On()          {mLED_1_On();mLED_2_On();}
-    #define mLED_Only_1_On()        {mLED_1_On();mLED_2_Off();}
-    #define mLED_Only_2_On()        {mLED_1_Off();mLED_2_On();}
-
-    if(USBSuspendControl == 1)
-    {
-        if(led_count==0)
-        {
-            mLED_1_Toggle();
-            if(mGetLED_1())
-            {
-                mLED_2_On();
-            }
-            else
-            {
-                mLED_2_Off();
-            }
-        }//end if
-    }
-    else
-    {
-        if(USBDeviceState == DETACHED_STATE)
-        {
-            mLED_Both_Off();
-        }
-        else if(USBDeviceState == ATTACHED_STATE)
-        {
-            mLED_Both_On();
-        }
-        else if(USBDeviceState == POWERED_STATE)
-        {
-            mLED_Only_1_On();
-        }
-        else if(USBDeviceState == DEFAULT_STATE)
-        {
-            mLED_Only_2_On();
-        }
-        else if(USBDeviceState == ADDRESS_STATE)
-        {
-            if(led_count == 0)
-            {
-                mLED_1_Toggle();
-                mLED_2_Off();
-            }//end if
-        }
-        else if(USBDeviceState == CONFIGURED_STATE)
-        {
-            if(led_count==0)
-            {
-                mLED_1_Toggle();
-                if(mGetLED_1())
-                {
-                    mLED_2_Off();
-                }
-                else
-                {
-                    mLED_2_On();
-                }
-            }//end if
-        }//end if(...)
-    }//end if(UCONbits.SUSPND...)
-#endif // 0
-}//end BlinkUSBStatus
-
 
 
 
