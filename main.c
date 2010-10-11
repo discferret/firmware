@@ -380,13 +380,92 @@ static void InitializeSystem(void)
 
 void UserInit(void)
 {
-//    mInitAllLEDs();
-//    mInitAllSwitches();
+	// Initialise port latches
+	LATA = 0b00000000;
+	LATB = 0b00000000;
+	LATC = 0b00000000;
+	LATD = 0b00000000;
+	LATE = 0b00000000;
+	LATF = 0b00000000;
+	LATG = 0b00000000;
+	LATH = 0b00000000;
+	// MCULED off, rest held low
+	LATJ = 0b01000000;
+
+	// Set up ports
+	// PORTA: All open-circuit; set as output driving low
+	TRISA = 0b00000000;
+	// PORTB: ICSP on {7,6} O/P, PMP address load on {5,4}, rest n/c
+	TRISB = 0b00000000;
+	// PORTC: UART RX on 7, UART TX on 6, FPGA CFG data on 5, Data In on 4, CFG CLK on 3, rest n/c
+	TRISC = 0b10010000;
+	// PORTD: PMP data bus
+	TRISD = 0b11111111;
+	// PORTE: PMWR and PMRD at {1,0}, rest n/c
+	TRISE = 0b00000000;
+	// PORTF: USB D+ and D- on {4,3}, USB detect on 2, rest n/c
+	TRISF = 0b00011100;
+	// PORTG: nCONFIG on 0, rest n/c
+	TRISG = 0b00000000;
+	// PORTH: all n/c
+	TRISH = 0b00000000;
+	// PORTJ: MCULED on 6, BOOT on 5, FCDONE on 3, FCNSTAT on 2, rest n/c
+	TRISJ = 0b00101100;
+
+	// Enable SSP1 for FPGA microcode loading
+	SSP1STAT = 0b01000000;		// CKE=1 (xmit on active->idle edge)
+	SSP1CON1 = 0b00100000;		// CKP=0 (clock is idle-low / active-high)
+								// and enable the MSSP
 
 //	blinkStatusValid = TRUE;	//Blink the normal USB state on the LEDs.
-
 }//end UserInit
 
+enum {
+	FPGA_E_OK		= 0,
+	FPGA_E_TIMEOUT	= -1
+};
+
+int fpga_config_start(void)
+{
+	long tm;
+
+	// Prepare for reconfiguration
+	PIN_FCDCLK = 0;
+	PIN_FCDATA0 = 0;
+	
+	// Strobe nCONFIG low
+	PIN_FCNCONF = 0;
+	
+	// Wait for nSTATUS to go low (ACK the CONFIG request)
+	tm = GetInstructionClock() / 1000;		// 1ms timeout
+	while ((PIN_FCNSTAT) && (tm-- > 0));
+	if (tm == 0) return FPGA_E_TIMEOUT;
+	
+	// Raise nCONFIG again
+	PIN_FCNCONF = 1;
+	
+	// Wait for nSTATUS to go high (end of POR delay)
+	tm = GetInstructionClock() / 1000;		// 1ms timeout
+	while ((!PIN_FCNSTAT) && (tm-- > 0));
+	if (tm == 0) return FPGA_E_TIMEOUT;
+
+	// FPGA now ready to be configured
+	return FPGA_E_OK;
+}
+
+enum {
+	CMD_NOP				= 0,
+	CMD_FPGA_INIT		= 1,
+	CMD_FPGA_LOAD		= 2,
+	CMD_FPGA_POLL		= 3
+};
+
+enum {
+	ERR_OK				= 0,		// Operation completed successfully
+	ERR_HARDWARE_ERROR	= 1,		// Hardware error
+	ERR_INVALID_LEN		= 2,		// Packet length byte invalid
+	ERR_FPGA_NOT_CONF	= 3			// FPGA not configured
+};
 
 /******************************************************************************
  * Function:        void ProcessIO(void)
@@ -405,12 +484,14 @@ void UserInit(void)
  * Note:            None
  *****************************************************************************/
 void ProcessIO(void)
-{   
+{
+	int i;
+
     //Blink the LEDs according to the USB device status, but only do so if the PC application isn't connected and controlling the LEDs.
-//    if(blinkStatusValid)
-//    {
-//        BlinkUSBStatus();
-//    }
+    if(blinkStatusValid)
+    {
+        BlinkUSBStatus();
+    }
 
     //User Application USB tasks below.
     //Note: The user application should not begin attempting to read/write over the USB
@@ -434,47 +515,59 @@ void ProcessIO(void)
     //simple commands.  For example, if the host sends a packet of data to the endpoint 1 OUT buffer, with the
     //first byte = 0x80, this is being used as a command to indicate that the firmware should "Toggle LED(s)".
     if(!USBHandleBusy(USBGenericOutHandle))		//Check if the endpoint has received any data from the host.
-    {   
-/*        switch(OUTPacket[0])					//Data arrived, check what kind of command might be in the packet of data.
-        {
-            case 0x80:  //Toggle LED(s) command from PC application.
-		        blinkStatusValid = FALSE;		//Disable the regular LED blink pattern indicating USB state, PC application is controlling the LEDs.
-                if(mGetLED_1() == mGetLED_2())
-                {
-                    mLED_1_Toggle();
-                    mLED_2_Toggle();
-                }
-                else
-                {
-                    mLED_1_On();
-                    mLED_2_On();
-                }
-                break;
-            case 0x81:  //Get push button state command from PC application.
-                INPacket[0] = 0x81;				//Echo back to the host PC the command we are fulfilling in the first byte.  In this case, the Get Pushbutton State command.
-				if(sw2 == 1)					//pushbutton not pressed, pull up resistor on circuit board is pulling the PORT pin high
-				{
-					INPacket[1] = 0x01;			
+    {
+		// Turn MCU LED on during command processing
+		PIN_MCULED = 0;
+
+		switch(OUTPacket[0]) {
+			case CMD_NOP:			// NOP
+				break;
+
+			case CMD_FPGA_INIT:		// FPGA Load Begin
+				if (fpga_config_start() != FPGA_E_OK) {
+					INPacket[0] = ERR_HARDWARE_ERROR;
+				} else {
+					INPacket[0] = ERR_OK;
 				}
-				else							//sw2 must be == 0, pushbutton is pressed and overpowering the pull up resistor
-				{
-					INPacket[1] = 0x00;
-				}				
-				//Now check to make sure no previous attempts to send data to the host are still pending.  If any attemps are still
-				//pending, we do not want to write to the endpoint 1 IN buffer again, until the previous transaction is complete.
-				//Otherwise the unsent data waiting in the buffer will get overwritten and will result in unexpected behavior.    
-                if(!USBHandleBusy(USBGenericInHandle))		
-	            {	
-		            //The endpoint was not "busy", therefore it is safe to write to the buffer and arm the endpoint.					
-	                //The USBGenWrite() function call "arms" the endpoint (and makes the handle indicate the endpoint is busy).
-	                //Once armed, the data will be automatically sent to the host (in hardware by the SIE) the next time the 
-	                //host polls the endpoint.  Once the data is successfully sent, the handle (in this case USBGenericInHandle) 
-	                //will indicate the the endpoint is no longer busy.
-					USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM,(BYTE*)&INPacket,USBGEN_EP_SIZE);	
-                }
-                break;
-        }
-*/        
+				USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)&INPacket, 1);
+				break;
+
+			case CMD_FPGA_LOAD:		// FPGA Config Load
+									// TODO: Speed this up! Allow longer packets!
+				if (OUTPacket[1] > 62) {
+					INPacket[0] = ERR_INVALID_LEN;
+					USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)&INPacket, 1);
+					break;
+				}
+
+				// Second byte is the data length -- send the payload!
+				for (i=0; i<OUTPacket[1]; i++) {
+					// Clear MSSP shift register if necessary
+					if (SSP1STATbits.BF) {
+						char foo = SSP1BUF;
+					}
+					// Send data to MSSP
+					SSP1BUF = OUTPacket[i+2];
+				}
+
+				// Response: success
+				INPacket[0] = ERR_OK;
+				USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)&INPacket, 1);
+				break;
+
+			case CMD_FPGA_POLL:		// FPGA Config State Poll
+				if (PIN_FCDONE) {
+					INPacket[0] = ERR_OK;
+				} else {
+					INPacket[0] = ERR_FPGA_NOT_CONF;
+				}
+				USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)&INPacket, 1);
+				break;
+		}
+
+		// Turn MCU LED off again
+		PIN_MCULED = 1;
+
         //Re-arm the OUT endpoint for the next packet:
 	    //The USBGenRead() function call "arms" the endpoint (and makes it "busy").  If the endpoint is armed, the SIE will 
 	    //automatically accept data from the host, if the host tries to send a packet of data to the endpoint.  Once a data 

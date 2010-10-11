@@ -113,37 +113,104 @@
     #define GetSystemClock()  CLOCK_FREQ   
     #define GetInstructionClock() CLOCK_FREQ   
 
-    /** LED ************************************************************/
-/*    #define mInitAllLEDs()      {LATE &= 0xFC; TRISE &= 0xFC; LATD &= 0xF3; TRISD &= 0xF3;}
-    
-    #define mLED_1              LATEbits.LATE0
-    #define mLED_2              LATEbits.LATE1
-    #define mLED_3              LATDbits.LATD2
-    #define mLED_4              LATDbits.LATD3
-    
-    #define mGetLED_1()         mLED_1
-    #define mGetLED_2()         mLED_2
-    #define mGetLED_3()         mLED_3
-    #define mGetLED_4()         mLED_4
+/**************
+ * PORT MAPPINGS
+ *
+ * PORTA
+ *   5: nc
+ *   4: nc
+ *   3: nc
+ *   2: nc
+ *   1: nc
+ *   0: nc
+ *
+ * PORTB
+ *   7: ICSP_PGD	Reserved for ICSP
+ *   6: ICSP_PGC	Reserved for ICSP
+ *   5: PMALL	--> Parallel Master Port Address Load Low
+ *   4: PMALH	--> Parallel Master Port Address Load High
+ *   3: nc
+ *   2: nc
+ *   1: nc
+ *   0: nc
+ *
+ * PORTC
+ *   7: RX1		--> UART port RX
+ *   6: TX1		--> UART port TX
+ *   5: FCDATA0	--> FPGA Config Data 0	(MSSP Master Mode SPI Data Out  / MOSI)
+ *   4: =1		--> Tied to VCC			(MSSP Master Mode SPI Data In   / MISO)
+ *   3: FCDCLK	--> FPGA Config Clock	(MSSP Master Mode SPI Clock Out / SCLK)
+ *   2: nc
+ *   1: nc
+ *   0: nc
+ *
+ * PORTD
+ *   7: PMD7	}
+ *   6: PMD6	}
+ *   5: PMD5	}
+ *   4: PMD4	}	Parallel Master Port
+ *   3: PMD3	}	Data Bus
+ *   2: PMD2	}
+ *   1: PMD1	}
+ *   0: PMD0	}
+ *
+ * PORTE
+ *   7: nc
+ *   6: nc
+ *   5: nc
+ *   4: nc
+ *   3: nc
+ *   2: nc
+ *   1: PMWR	--> Parallel Master Port Write
+ *   0: PMRD	--> Parallel Master Port Read
+ *
+ * PORTF
+ *   7: nc
+ *   6: nc
+ *   5: nc
+ *   4: USB D+
+ *   3: USB D-
+ *   2: USBDET	--> =1 if USB plug is connected
+ *
+ * PORTG
+ *   4: nc
+ *   3: nc
+ *   2: nc
+ *   1: nc
+ *   0: FCNCONF	-->	FPGA Configuration nCONFIG
+ *
+ * PORTH
+ *   7: nc
+ *   6: nc
+ *   5: nc
+ *   4: nc
+ *   3: nc
+ *   2: nc
+ *   1: nc
+ *   0: nc
+ *
+ * PORTJ
+ *   7: nc
+ *   6: MCULED	--> =0 to turn LED on
+ *   5: BOOT	--> =0 if Force Bootloader jumper closed
+ *   4: nc
+ *   3: FCDONE	--> FPGA Config Done
+ *   2: FCNSTAT	--> FPGA Config nSTATUS
+ *   1: nc
+ *   0: nc
+ */
 
-    #define mLED_1_On()         mLED_1 = 1;
-    #define mLED_2_On()         mLED_2 = 1;
-    #define mLED_3_On()         mLED_3 = 1;
-    #define mLED_4_On()         mLED_4 = 1;
-    
-    #define mLED_1_Off()        mLED_1 = 0;
-    #define mLED_2_Off()        mLED_2 = 0;
-    #define mLED_3_Off()        mLED_3 = 0;
-    #define mLED_4_Off()        mLED_4 = 0;
-    
-    #define mLED_1_Toggle()     mLED_1 = !mLED_1;
-    #define mLED_2_Toggle()     mLED_2 = !mLED_2;
-    #define mLED_3_Toggle()     mLED_3 = !mLED_3;
-    #define mLED_4_Toggle()     mLED_4 = !mLED_4;
-*/
+#define	PIN_FCDATA0	LATCbits.LATC5
+#define	PIN_FCDCLK	LATCbits.LATC3
+#define	PIN_FCNCONF	LATGbits.LATG0
+#define	PIN_FCDONE	PORTJbits.RJ3
+#define	PIN_FCNSTAT	PORTJbits.RJ2
+
+#define PIN_MCULED	LATJbits.LATJ6
+#define	PIN_BOOT	PORTJbits.RJ5
 
     /** I/O pin definitions ********************************************/
     #define INPUT_PIN 1
     #define OUTPUT_PIN 0
 
-#endif  //HARDWARE_PROFILE_PIC18F87J50_PIM_H
+#endif  //HARDWARE_PROFILE_H
