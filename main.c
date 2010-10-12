@@ -694,7 +694,7 @@ void ProcessIO(void)
 				// RAM address recently set?
 				if (ramread_discard_first) {
 					// Flush the PMD read pipeline
-					i = PMDIN1L;
+					j = PMDIN1L;
 					ramread_discard_first = 0;
 				}
 
@@ -703,8 +703,8 @@ void ProcessIO(void)
 					INPacket[j] = PMDIN1L;
 				}
 				// Success!
-				INPacket[counter++] = ERR_OK;
-				counter += i;
+				INPacket[0] = ERR_OK;
+				counter = i+1;
 				break;
 
 			case CMD_GET_VERSION:	// Read hardware/firmware/microcode version info
