@@ -4,11 +4,34 @@
 
 import sys, usb, struct, datetime
 
-# The UsbPic class was written by Julius Constante and modified to use Bulk
-# Transfer Mode by philpem.
+#############################################################################
 
-class UsbPic:
-	def __init__(self, vendor_id, product_id):
+CMD_NOP				= 0
+CMD_FPGA_INIT		= 1
+CMD_FPGA_LOAD		= 2
+CMD_FPGA_POLL		= 3
+CMD_FPGA_POKE		= 4
+CMD_FPGA_PEEK		= 5
+CMD_RAM_ADDR_SET	= 6
+CMD_RAM_ADDR_GET	= 7
+CMD_RAM_WRITE		= 8
+CMD_RAM_READ		= 9
+CMD_GET_VERSION		= 0xFF
+
+ERR_OK				= 0
+ERR_HARDWARE_ERROR	= 1
+ERR_INVALID_LEN		= 2
+ERR_FPGA_NOT_CONF	= 3
+
+#############################################################################
+
+# The UsbPic class was written by Julius Constante and modified by Phil Pemberton
+# to use Bulk Transfer Mode and control a DiscFerret
+
+class DiscFerret:
+	def __init__(self):
+		vendor_id = 0x04d8
+		product_id = 0xfbbb
 		busses = usb.busses() # enumerate busses
 		self.handle = None
 		for bus in busses:
@@ -50,24 +73,89 @@ class UsbPic:
 		except:
 			return []
 
-	def getDeviceManufacturer(self):
-		return self.handle.getString(1, 40)
+	def getDeviceInfo(self):
+		info = dict()
+		# poll USB for product information
+		if self.dev.iManufacturer != 0:
+			info['manufacturer']	= self.handle.getString(self.dev.iManufacturer,	40)
+		else:
+			info['manufacturer']	= ''
+		if self.dev.iProduct != 0:
+			info['product']			= self.handle.getString(self.dev.iProduct,		40)
+		else:
+			info['product']			= ''
+		if self.dev.iSerialNumber != 0:
+			info['serialnumber']	= self.handle.getString(self.dev.iSerialNumber,	40)
+		else:
+			info['serialnumber']	= ''
+		# poll the device with a GET_VERSION request
+		self.write(1, [CMD_GET_VERSION])
+		resp = self.read(0x81, 64)
+		info['hardware_rev'] = str()
+		for i in range(1, 5):
+			info['hardware_rev'] += chr(resp[i])
+		info['firmware_ver']	= (resp[5] << 8) + resp[6]
+		info['microcode_type']	= (resp[7] << 8) + resp[8]
+		info['microcode_ver']	= (resp[9] << 8) + resp[10]
+		return info
 
-	def getDeviceName(self):
-		return self.handle.getString(2, 40)
+	def fpgaLoadBegin(self):
+		self.write(1, [CMD_FPGA_INIT])
+		resp = self.read(0x81, 1)
+		return resp[0]
+
+	def fpgaGetLoadStatus(self):
+		self.write(1, [CMD_FPGA_POLL])
+		resp = self.read(0x81, 1)
+		return resp[0]
+
+	def fpgaLoadBlock(self, block):
+		# TODO: raise exception if len(block) > 62
+		packet = [CMD_FPGA_LOAD, len(block)]
+		packet.extend(block)
+		self.write(1, packet)
+		resp = self.read(0x81, 1)
+		return resp[0]
+
+	def peek(self, addr):
+		self.write(1, [CMD_FPGA_PEEK, ((addr >> 8) & 0xff), addr & 0xff])
+		resp = self.read(0x81, 2)
+		if resp[0] == ERR_OK:
+			return resp[1]
+		else:
+			return None
+
+	def poke(self, addr, data):
+		self.write(1, [CMD_FPGA_POKE, ((addr >> 8) & 0xff), addr & 0xff, data & 0xff])
+		resp = self.read(0x81, 1)
+		if resp[0] == ERR_OK:
+			return True
+		else:
+			return False
+
+	def setRAMAddr(self, addr):
+		self.write(1, [CMD_RAM_ADDR_SET, addr & 0xff, (addr >> 8) & 0xff, (addr >> 16) & 0xff])
+		resp = self.read(0x81, 1)
+		if resp[0] == ERR_OK:
+			return True
+		else:
+			return False
+
+	def getRAMAddr(self):
+		self.write(1, [CMD_RAM_ADDR_GET])
+		resp = self.read(0x81, 4)
+		if resp[0] == ERR_OK:
+			return resp[1] + (resp[2] << 8) + (resp[3] << 16)
+		else:
+			return False
+
+	def ramWrite(self, data):
+		return False
+
+	def ramRead(self, nbytes):
+		return False
 
 ######################################################################################################
-
-# perform a write-then-read operation
-def rwop(dev, ep, arr, readlen, timeout = 100):
-	dev.write(ep, arr, timeout)
-	if (readlen > 0):
-		resp = dev.read(ep | 0x80, readlen, timeout)
-		if len(resp) > 0:
-			return resp
-		else:
-			print "Error: device read failed."
-			sys.exit(-1)
 
 # swap the bits in a byte
 def bitswap(num):
@@ -79,68 +167,31 @@ def bitswap(num):
 
 #############################################################################
 
-CMD_NOP				= 0
-CMD_FPGA_INIT		= 1
-CMD_FPGA_LOAD		= 2
-CMD_FPGA_POLL		= 3
-CMD_FPGA_POKE		= 4
-CMD_FPGA_PEEK		= 5
-CMD_RAM_ADDR_SET	= 6
-CMD_RAM_ADDR_GET	= 7
-CMD_RAM_WRITE		= 8
-CMD_RAM_READ		= 9
-CMD_GET_VERSION		= 0xFF
-
-ERR_OK				= 0
-ERR_HARDWARE_ERROR	= 1
-ERR_INVALID_LEN		= 2
-ERR_FPGA_NOT_CONF	= 3
-
-#############################################################################
-
-# read an FPGA register
-def df_peek(dev, addr, timeout=100):
-	resp = rwop(dev, 1, [CMD_FPGA_PEEK, ((addr >> 8) & 0xff), (addr & 0xff)], 2, timeout)
-	if resp[0] == ERR_OK:
-		return resp[1]
-	else:
-		return None
-
-# write an FPGA register
-def df_poke(dev, addr, byte, timeout=100):
-	resp = rwop(dev, 1, [CMD_FPGA_PEEK, ((addr >> 8) & 0xff), (addr & 0xff), byte], 1, timeout)
-	if resp[0] == ERR_OK:
-		return True
-	else:
-		return None
-
-#############################################################################
-
 # open the discferret
-dev = UsbPic(0x04d8, 0xfbbb)
+dev = DiscFerret()
 if not dev.open():
 	print "Could not open device, is it connected?"
 	sys.exit(-1)
 else:
-	print "Device opened: %s %s" % (dev.getDeviceManufacturer(), dev.getDeviceName())
+	print "Device opened successfully"
 
-print "Initialising FPGA... ",
+print "Initialising FPGA...",
 # FPGA LOAD INIT -- start a microcode load
-resp = rwop(dev, 1, [CMD_FPGA_INIT], 1, 1000)
-if resp[0] == ERR_OK:
-	print "OK! ",
+resp = dev.fpgaLoadBegin()
+if resp == ERR_OK:
+	print "OK!",
 else:
-	print "Failed with status code %d" % resp[0]
+	print "Failed with status code %d" % resp
 	sys.exit(-1)
 
 # poll fpga status
-resp = rwop(dev, 1, [CMD_FPGA_POLL], 1, 1000)
-if resp[0] == ERR_FPGA_NOT_CONF:
+resp = dev.fpgaGetLoadStatus()
+if resp == ERR_FPGA_NOT_CONF:
 	print "(FPGA is waiting for microcode load)"
-elif resp[0] == ERR_OK:
+elif resp == ERR_OK:
 	print "(FPGA microcode is active)"
 else:
-	print "FPGA status code unknown, is %d, wanted %d or %d" % (resp[0], ERR_OK, ERR_FPGA_NOT_CONF)
+	print "FPGA status code unknown, is %d, wanted %d or %d" % (resp, ERR_OK, ERR_FPGA_NOT_CONF)
 	sys.exit(-1)
 
 # load RBF file
@@ -170,39 +221,25 @@ while pos < len(rbf):
 	else:
 		i = (len(rbf)-pos)
 
-	# packet header
-	packet = [CMD_FPGA_LOAD, i]
-
-	# data payload
-	packet.extend(rbf[pos:pos+i])
-	resp = rwop(dev, 1, packet, 1, 1000)
-	if resp[0] != 0:
-		print "FPGA microcode block transfer failed at addr=%04X, err=%d" % (pos, resp[0])
+	resp = dev.fpgaLoadBlock(rbf[pos:pos+i])
+	if resp != ERR_OK:
+		print "FPGA microcode block transfer failed at addr=%04X, err=%d" % (pos, resp)
 		sys.exit(-1)
 
 	# update pointer
 	pos += i
 
 # poll fpga status
-print "Load complete. FPGA status: ",
-resp = rwop(dev, 1, [CMD_FPGA_POLL], 1, 1000)
-if resp[0] == ERR_FPGA_NOT_CONF:
-	print "FPGA is waiting for microcode load"
-elif resp[0] == ERR_OK:
-	print "FPGA microcode is active"
+print "Load complete. FPGA status:",
+resp = dev.fpgaGetLoadStatus()
+if resp == ERR_FPGA_NOT_CONF:
+	print "FPGA is waiting for microcode load. Microcode load error."
+	sys.exit(-1)
+elif resp == ERR_OK:
+	print "FPGA microcode is active. Microcode load succeeded."
 else:
-	print "FPGA status code unknown, is %d, wanted %d or %d" % (resp[0], ERR_OK, ERR_FPGA_NOT_CONF)
+	print "FPGA status code unknown, is %d, wanted %d or %d" % (resp, ERR_OK, ERR_FPGA_NOT_CONF)
 	sys.exit(-1)
 
-# read version information
-ver_info = rwop(dev, 1, [CMD_GET_VERSION], 64, 1000)
-print ver_info
-hwid = str()
-for i in range(1, 5):
-	hwid += chr(ver_info[i])
-fvid = (ver_info[5] << 8) + ver_info[6]
-mtid = (ver_info[7] << 8) + ver_info[8]
-mvid = (ver_info[9] << 8) + ver_info[10]
-print "DiscFerret hardware rev %s running firmware %04X, microcode type %04X, microcode version %04X" % (hwid, fvid, mtid, mvid)
-
+print dev.getDeviceInfo()
 
