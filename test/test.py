@@ -85,6 +85,11 @@ CMD_FPGA_LOAD		= 2
 CMD_FPGA_POLL		= 3
 CMD_FPGA_POKE		= 4
 CMD_FPGA_PEEK		= 5
+CMD_RAM_ADDR_SET	= 6
+CMD_RAM_ADDR_GET	= 7
+CMD_RAM_WRITE		= 8
+CMD_RAM_READ		= 9
+CMD_GET_VERSION		= 0xFF
 
 ERR_OK				= 0
 ERR_HARDWARE_ERROR	= 1
@@ -189,8 +194,15 @@ else:
 	print "FPGA status code unknown, is %d, wanted %d or %d" % (resp[0], ERR_OK, ERR_FPGA_NOT_CONF)
 	sys.exit(-1)
 
-## try peeking a few addresses
-mcode_type = (df_peek(dev, 0x0004) << 8) + df_peek(dev, 0x0005)
-mcode_version = (df_peek(dev, 0x0006) << 8) + df_peek(dev, 0x0007)
-print "Microcode type %04X, version %04X" % (mcode_type, mcode_version)
+# read version information
+ver_info = rwop(dev, 1, [CMD_GET_VERSION], 64, 1000)
+print ver_info
+hwid = str()
+for i in range(1, 5):
+	hwid += chr(ver_info[i])
+fvid = (ver_info[5] << 8) + ver_info[6]
+mtid = (ver_info[7] << 8) + ver_info[8]
+mvid = (ver_info[9] << 8) + ver_info[10]
+print "DiscFerret hardware rev %s running firmware %04X, microcode type %04X, microcode version %04X" % (hwid, fvid, mtid, mvid)
+
 
