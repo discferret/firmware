@@ -544,6 +544,7 @@ void ProcessIO(void)
 {
 	unsigned int counter = 0;
 	unsigned int i, j;
+	static char ramread_discard_first = 1;
 
     //User Application USB tasks below.
     //Note: The user application should not begin attempting to read/write over the USB
@@ -643,6 +644,8 @@ void ProcessIO(void)
 				PMP_ADDR_SETW(R_SRAM_ADDR_UPPER);
 				PMP_WRITE(OUTPacket[3]);
 				INPacket[counter++] = ERR_OK;
+				// Next RAM read should discard the first byte it reads
+				ramread_discard_first = 1;
 				break;
 
 			case CMD_RAM_ADDR_GET:	// Get RAM address
@@ -658,6 +661,7 @@ void ProcessIO(void)
 				break;
 
 			case CMD_RAM_WRITE:		// Write a block of data to RAM
+									// TODO: Speed this up! Allow longer packets!
 				// Accepts: CMD_RAM_WRITE lenLo lenHi payload
 				// Returns: status
 				i = (OUTPacket[2] << 8) + OUTPacket[1];
@@ -676,6 +680,7 @@ void ProcessIO(void)
 				break;
 
 			case CMD_RAM_READ:		// Read a block of data from RAM and return it
+									// TODO: Speed this up! Allow longer packets!
 				// Accepts: CMD_RAM_READ  lenLo lenHi
 				// Returns: status  payload
 				i = (OUTPacket[2] << 8) + OUTPacket[1];
@@ -685,6 +690,14 @@ void ProcessIO(void)
 				}
 				// Select RAM Access port
 				PMP_ADDR_SETW(R_SRAM_DATA);
+
+				// RAM address recently set?
+				if (ramread_discard_first) {
+					// Flush the PMD read pipeline
+					i = PMDIN1L;
+					ramread_discard_first = 0;
+				}
+
 				// Read data from the FPGA
 				for (j=1; j<i+1; j++) {
 					INPacket[j] = PMDIN1L;
