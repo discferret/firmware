@@ -1,13 +1,13 @@
 /********************************************************************
  FileName:		main.c
  Dependencies:	See INCLUDES section
- Processor:		PIC18, PIC24, and PIC32 USB Microcontrollers
- Hardware:		This demo is natively intended to be used on Microchip USB demo
- 				boards supported by the MCHPFSUSB stack.  See release notes for
- 				support matrix.  This demo can be modified for use on other hardware
- 				platforms.
- Complier:  	Microchip C18 (for PIC18), C30 (for PIC24), C32 (for PIC32)
- Company:		Microchip Technology, Inc.
+ Processor:		PIC18F85J50
+ Hardware:		DiscFerret 
+ Compiler:  	Microchip C18
+ Company:		Red Fox Engineering
+
+ Based on code from Microchip Technology Inc. Original Microchip
+ license agreement follows.
 
  Software License Agreement:
 
@@ -29,15 +29,6 @@
  IN ANY CIRCUMSTANCES, BE LIABLE FOR SPECIAL, INCIDENTAL OR
  CONSEQUENTIAL DAMAGES, FOR ANY REASON WHATSOEVER.
 
-********************************************************************
- File Description:
-
- Change History:
-  Rev   Description
-  ----  -----------------------------------------
-  2.6a  Added support for the PIC24FJ256GB210
-
-  2.7   No change
 ********************************************************************/
 
 /** INCLUDES *******************************************************/
