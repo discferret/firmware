@@ -58,15 +58,18 @@ class UsbPic:
 
 ######################################################################################################
 
+# perform a write-then-read operation
 def rwop(dev, ep, arr, readlen, timeout = 100):
 	dev.write(ep, arr, timeout)
-	resp = dev.read(ep | 0x80, readlen, timeout)
-	if len(resp) > 0:
-		return resp
-	else:
-		print "Error: device read failed."
-		sys.exit(-1)
+	if (readlen > 0):
+		resp = dev.read(ep | 0x80, readlen, timeout)
+		if len(resp) > 0:
+			return resp
+		else:
+			print "Error: device read failed."
+			sys.exit(-1)
 
+# swap the bits in a byte
 def bitswap(num):
 	val = 0
 	for x in range(8):
@@ -87,6 +90,24 @@ ERR_OK				= 0
 ERR_HARDWARE_ERROR	= 1
 ERR_INVALID_LEN		= 2
 ERR_FPGA_NOT_CONF	= 3
+
+#############################################################################
+
+# read an FPGA register
+def df_peek(dev, addr, timeout=100):
+	resp = rwop(dev, 1, [CMD_FPGA_PEEK, ((addr >> 8) & 0xff), (addr & 0xff)], 2, timeout)
+	if resp[0] == ERR_OK:
+		return resp[1]
+	else:
+		return None
+
+# write an FPGA register
+def df_poke(dev, addr, byte, timeout=100):
+	resp = rwop(dev, 1, [CMD_FPGA_PEEK, ((addr >> 8) & 0xff), (addr & 0xff), byte], 1, timeout)
+	if resp[0] == ERR_OK:
+		return True
+	else:
+		return None
 
 #############################################################################
 
@@ -169,31 +190,7 @@ else:
 	sys.exit(-1)
 
 ## try peeking a few addresses
-resp = rwop(dev, 1, [CMD_FPGA_PEEK, 0x00, 0x55], 2, 5000)
-if (len(resp) > 1):
-	print "peek(0x0055) = 0x%02X 0x%02X" % (resp[0], resp[1])
-else:
-	print "peek(0x0055) = 0x%02X" % resp[0]
-resp = rwop(dev, 1, [CMD_FPGA_PEEK, 0xAA, 0x55], 2, 5000)
-if (len(resp) > 1):
-	print "peek(0xAA55) = 0x%02X 0x%02X" % (resp[0], resp[1])
-else:
-	print "peek(0xAA55) = 0x%02X" % resp[0]
-resp = rwop(dev, 1, [CMD_FPGA_PEEK, 0xEA, 0xBE], 2, 5000)
-if (len(resp) > 1):
-	print "peek(0xEABE) = 0x%02X 0x%02X" % (resp[0], resp[1])
-else:
-	print "peek(0xEABE) = 0x%02X" % resp[0]
-
-
-## poke then peek
-print
-print "---- poke then peek ----"
-resp = rwop(dev, 1, [CMD_FPGA_POKE, 0x00, 0x55, 0xEB], 1, 5000)
-print "poke(0x0055, 0xEB) = 0x%02X" % resp[0]
-resp = rwop(dev, 1, [CMD_FPGA_PEEK, 0x00, 0x55], 2, 5000)
-if (len(resp) > 1):
-	print "peek(0x0055) = 0x%02X 0x%02X" % (resp[0], resp[1])
-else:
-	print "peek(0x0055) = 0x%02X" % resp[0]
+mcode_type = (df_peek(dev, 0x0004) << 8) + df_peek(dev, 0x0005)
+mcode_version = (df_peek(dev, 0x0006) << 8) + df_peek(dev, 0x0007)
+print "Microcode type %04X, version %04X" % (mcode_type, mcode_version)
 
