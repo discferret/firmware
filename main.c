@@ -470,7 +470,12 @@ enum {
 	CMD_FPGA_LOAD		= 2,
 	CMD_FPGA_POLL		= 3,
 	CMD_FPGA_POKE		= 4,
-	CMD_FPGA_PEEK		= 5
+	CMD_FPGA_PEEK		= 5,
+	CMD_RAM_ADDR_SET	= 6,
+	CMD_RAM_ADDR_GET	= 7,
+	CMD_RAM_WRITE		= 8,
+	CMD_RAM_READ		= 9,
+	CMD_GET_VERSION		= 0xff
 };
 
 enum {
@@ -479,6 +484,54 @@ enum {
 	ERR_INVALID_LEN		= 2,		// Packet length byte invalid
 	ERR_FPGA_NOT_CONF	= 3			// FPGA not configured
 };
+
+enum {
+	R_SRAM_ADDR_LOW		= 0,
+	R_SRAM_ADDR_HIGH	= 1,
+	R_SRAM_ADDR_UPPER	= 2,
+	R_SRAM_DATA			= 3,
+	R_DRIVE_CONTROL		= 4,
+	R_ACQCON			= 5,
+	R_ACQ_START_EVT		= 6,
+	R_ACQ_STOP_EVT		= 7,
+	R_HSTMD_THR_START	= 8,
+	R_HSTMD_THR_STOP	= 9,
+	R_SYNCWORD_START_L	= 0x0a,
+	R_SYNCWORD_START_H	= 0x0b,
+	R_SYNCWORD_STOP_L	= 0x0c,
+	R_SYNCWORD_STOP_H	= 0x0d,
+	R_STEP_RATE			= 0x0e,
+	R_STEP_COMMAND		= 0x0f,
+
+	R_MICROCODE_TYPE_L	= 0x04,
+	R_MICROCODE_TYPE_H	= 0x05,
+	R_MICROCODE_VER_L	= 0x06,
+	R_MICROCODE_VER_H	= 0x07,
+	R_STATUS1			= 0x0E,
+	R_STATUS2			= 0x0F
+};
+
+#ifdef PMP_ADDR_16BIT
+#define PMP_ADDR_SET(hi,lo)	{ PMADDRH = hi; PMADDRL = lo; }
+#define PMP_ADDR_SETW(w)	{ PMADDRH = ((w) >> 8) & 0xff; PMADDRL = (w) & 0xff; }
+#else
+#define PMP_ADDR_SET(hi,lo)	{ PMADDRL = lo; }
+#define PMP_ADDR_SETW(w)	{ PMADDRL = (w) & 0xff; }
+#endif
+
+#define PMP_WRITE(x)		{ PMDIN1L = x; }
+
+unsigned char PMP_READ(void)
+{
+	unsigned char i;
+
+	// Initiate read
+	i = PMDIN1L;
+	// Wait for read completion
+	while (PMMODEHbits.BUSY);
+	// Return the data that the PMP read
+	return PMDIN1L;
+}
 
 /******************************************************************************
  * Function:        void ProcessIO(void)
@@ -498,7 +551,8 @@ enum {
  *****************************************************************************/
 void ProcessIO(void)
 {
-	int i;
+	unsigned int counter = 0;
+	unsigned int i, j;
 
     //User Application USB tasks below.
     //Note: The user application should not begin attempting to read/write over the USB
@@ -532,18 +586,16 @@ void ProcessIO(void)
 
 			case CMD_FPGA_INIT:		// FPGA Load Begin
 				if (fpga_config_start() != FPGA_E_OK) {
-					INPacket[0] = ERR_HARDWARE_ERROR;
+					INPacket[counter++] = ERR_HARDWARE_ERROR;
 				} else {
-					INPacket[0] = ERR_OK;
+					INPacket[counter++] = ERR_OK;
 				}
-				USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)&INPacket, 1);
 				break;
 
 			case CMD_FPGA_LOAD:		// FPGA Config Load
 									// TODO: Speed this up! Allow longer packets!
-				if (OUTPacket[1] > 62) {
-					INPacket[0] = ERR_INVALID_LEN;
-					USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)&INPacket, 1);
+				if (OUTPacket[1] > (USBGEN_EP_SIZE-2)) {
+					INPacket[counter++] = ERR_INVALID_LEN;
 					break;
 				}
 
@@ -558,48 +610,120 @@ void ProcessIO(void)
 				}
 
 				// Response: success
-				INPacket[0] = ERR_OK;
-				USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)&INPacket, 1);
+				INPacket[counter++] = ERR_OK;
 				break;
 
 			case CMD_FPGA_POLL:		// FPGA Config State Poll
 				if (PIN_FCDONE) {
-					INPacket[0] = ERR_OK;
+					INPacket[counter++] = ERR_OK;
 				} else {
-					INPacket[0] = ERR_FPGA_NOT_CONF;
+					INPacket[counter++] = ERR_FPGA_NOT_CONF;
 				}
-				USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)&INPacket, 1);
 				break;
 
 			case CMD_FPGA_POKE:		// Write a value into an FPGA register
 				// Load the address
-#ifdef PMP_ADDR_16BIT
-				PMADDRH = OUTPacket[1];
-#endif
-				PMADDRL = OUTPacket[2];
+				PMP_ADDR_SET(OUTPacket[1], OUTPacket[2]);
 				// Initiate write
-				PMDIN1L = OUTPacket[3];
+				PMP_WRITE(OUTPacket[3]);
 				// Send response
-				INPacket[0] = ERR_OK;
-				USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)&INPacket, 1);
+				INPacket[counter++] = ERR_OK;
 				break;
 
 			case CMD_FPGA_PEEK:		// Read a value from an FPGA register
 				// Load the address
-#ifdef PMP_ADDR_16BIT
-				PMADDRH = OUTPacket[1];
-#endif
-				PMADDRL = OUTPacket[2];
+				PMP_ADDR_SET(OUTPacket[1], OUTPacket[2]);
 				// Initiate read
-				INPacket[0] = ERR_OK;
-				INPacket[1] = PMDIN1L;
+				INPacket[counter++] = ERR_OK;
+				i = PMDIN1L;
 				// Wait for read completion
 				while (PMMODEHbits.BUSY);
-				// Get data that the PMP read
-				INPacket[1] = PMDIN1L;
-				// Send response
-				USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)&INPacket, 2);
+				// Get data that the PMP read and store it in the output buffer
+				INPacket[counter++] = PMDIN1L;
 				break;
+
+			case CMD_RAM_ADDR_SET:	// Set RAM address
+				// Accepts: CMD_RAM_GETADDR  ramaddrU  ramaddrH  ramaddrL
+				// Returns: status
+				PMP_ADDR_SETW(R_SRAM_ADDR_LOW);
+				PMP_WRITE(OUTPacket[1]);
+				PMP_ADDR_SETW(R_SRAM_ADDR_HIGH);
+				PMP_WRITE(OUTPacket[2]);
+				PMP_ADDR_SETW(R_SRAM_ADDR_UPPER);
+				PMP_WRITE(OUTPacket[3]);
+				INPacket[counter++] = ERR_OK;
+				break;
+
+			case CMD_RAM_ADDR_GET:	// Get RAM address
+				// Accepts: CMD_RAM_GETADDR
+				// Returns: status ramaddrU  ramaddrH  ramaddrL
+				INPacket[counter++] = ERR_OK;
+				PMP_ADDR_SETW(R_SRAM_ADDR_LOW);
+				INPacket[counter++] = PMP_READ();
+				PMP_ADDR_SETW(R_SRAM_ADDR_HIGH);
+				INPacket[counter++] = PMP_READ();
+				PMP_ADDR_SETW(R_SRAM_ADDR_UPPER);
+				INPacket[counter++] = PMP_READ();
+				break;
+
+			case CMD_RAM_WRITE:		// Write a block of data to RAM
+				// Accepts: CMD_RAM_WRITE lenLo lenHi payload
+				// Returns: status
+				i = (OUTPacket[1] << 8) + OUTPacket[0];
+				if (i > (USBGEN_EP_SIZE - 3)) {
+					INPacket[counter++] = ERR_INVALID_LEN;
+					break;
+				}
+				// Select RAM Access port
+				PMP_ADDR_SETW(R_SRAM_DATA);
+				// Write the payload data to the FPGA
+				for (j=3; j<i+3; j++) {
+					PMP_WRITE(OUTPacket[j]);
+				}
+				// Success!
+				INPacket[counter++] = ERR_OK;
+				break;
+
+			case CMD_RAM_READ:		// Read a block of data from RAM and return it
+				// Accepts: CMD_RAM_READ  lenLo lenHi
+				// Returns: status  payload
+				i = (OUTPacket[1] << 8) + OUTPacket[0];
+				if (i > (USBGEN_EP_SIZE - 1)) {
+					INPacket[counter++] = ERR_INVALID_LEN;
+					break;
+				}
+				// Select RAM Access port
+				PMP_ADDR_SETW(R_SRAM_DATA);
+				// Read data from the FPGA
+				for (j=1; j<i+1; j++) {
+					INPacket[j] = PMP_READ();
+				}
+				// Success!
+				INPacket[counter++] = ERR_OK;
+				counter += i;
+				break;
+
+			case CMD_GET_VERSION:	// Read hardware/firmware/microcode version info
+				INPacket[counter++] = ERR_OK;
+				INPacket[counter++] = '0';			// Hardware rev
+				INPacket[counter++] = 'I';
+				INPacket[counter++] = '0';
+				INPacket[counter++] = '6';
+				INPacket[counter++] = 0x00;			// Firmware version hi
+				INPacket[counter++] = 0x1A;			// Firmware version lo
+				PMP_ADDR_SETW(R_MICROCODE_TYPE_H);	// Microcode type hi
+				INPacket[counter++] = PMP_READ();
+				PMP_ADDR_SETW(R_MICROCODE_TYPE_L);	// Microcode type lo
+				INPacket[counter++] = PMP_READ();
+				PMP_ADDR_SETW(R_MICROCODE_VER_H);	// Microcode version hi
+				INPacket[counter++] = PMP_READ();
+				PMP_ADDR_SETW(R_MICROCODE_VER_L);	// Microcode version lo
+				INPacket[counter++] = PMP_READ();
+		}
+
+		// Send IN buffer data (if any)
+		if (counter > 0) {
+			USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)&INPacket, counter);
 		}
 
 		// Turn MCU LED off again
