@@ -416,7 +416,11 @@ void UserInit(void)
 								// and enable the MSSP
 
 	// Configure the Parallel Master Port
-	PMCONH   = 0b00010011;		// PMP off, mux address onto PMD[7:0], byte-enable off, RD/WR on
+#ifdef PMP_ADDR_16BIT
+	PMCONH   = 0b00010011;		// PMP off, fully multiplexed, byte-enable off, RD/WR on
+#else
+	PMCONH   = 0b00001011;		// PMP off, partially multiplexed, byte-enable off, RD/WR on
+#endif
 	PMCONL   = 0b00100011;		// PMCS as ADDR[15:14], addr latch and RD/WR active-high
 	PMMODEH  = 0b00000010;		// no interrupts, no increment, 8-bit, Master Mode 2
 	PMMODEL  = 0b00000000;		// no additional wait states
