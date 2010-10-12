@@ -44,10 +44,11 @@ class UsbPic:
 			return 0
 
 	def read(self, ep, size, timeout = 100):
-#		try:
-			return self.handle.bulkRead(ep, size, timeout) # return data read
-#		except:
-#			return []
+		try:
+			# the OR 0x80 forces a READ
+			return self.handle.bulkRead(ep | 0x80, size, timeout) # return data read
+		except:
+			return []
 
 	def getDeviceManufacturer(self):
 		return self.handle.getString(1, 40)
@@ -58,8 +59,8 @@ class UsbPic:
 ######################################################################################################
 
 def rwop(dev, ep, arr, readlen, timeout = 100):
-	dev.write(1, arr, timeout)
-	resp = dev.read(readlen, timeout)
+	dev.write(ep, arr, timeout)
+	resp = dev.read(ep | 0x80, readlen, timeout)
 	if len(resp) > 0:
 		return resp
 	else:
@@ -168,17 +169,17 @@ else:
 	sys.exit(-1)
 
 ## try peeking a few addresses
-resp = rwop(dev, 1, [CMD_FPGA_PEEK, 0x00, 0x55], 1, 5000)
+resp = rwop(dev, 1, [CMD_FPGA_PEEK, 0x00, 0x55], 2, 5000)
 if (len(resp) > 1):
 	print "peek(0x0055) = 0x%02X 0x%02X" % (resp[0], resp[1])
 else:
 	print "peek(0x0055) = 0x%02X" % resp[0]
-resp = rwop(dev, 1, [CMD_FPGA_PEEK, 0xAA, 0x55], 1, 5000)
+resp = rwop(dev, 1, [CMD_FPGA_PEEK, 0xAA, 0x55], 2, 5000)
 if (len(resp) > 1):
 	print "peek(0xAA55) = 0x%02X 0x%02X" % (resp[0], resp[1])
 else:
 	print "peek(0xAA55) = 0x%02X" % resp[0]
-resp = rwop(dev, 1, [CMD_FPGA_PEEK, 0xEA, 0xBE], 1, 5000)
+resp = rwop(dev, 1, [CMD_FPGA_PEEK, 0xEA, 0xBE], 2, 5000)
 if (len(resp) > 1):
 	print "peek(0xEABE) = 0x%02X 0x%02X" % (resp[0], resp[1])
 else:
@@ -190,7 +191,7 @@ print
 print "---- poke then peek ----"
 resp = rwop(dev, 1, [CMD_FPGA_POKE, 0x00, 0x55, 0xEB], 1, 5000)
 print "poke(0x0055, 0xEB) = 0x%02X" % resp[0]
-resp = rwop(dev, 1, [CMD_FPGA_PEEK, 0x00, 0x55], 1, 5000)
+resp = rwop(dev, 1, [CMD_FPGA_PEEK, 0x00, 0x55], 2, 5000)
 if (len(resp) > 1):
 	print "peek(0x0055) = 0x%02X 0x%02X" % (resp[0], resp[1])
 else:
