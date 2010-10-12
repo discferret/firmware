@@ -573,7 +573,9 @@ void ProcessIO(void)
 
 			case CMD_FPGA_POKE:		// Write a value into an FPGA register
 				// Load the address
+#ifdef PMP_ADDR_16BIT
 				PMADDRH = OUTPacket[1];
+#endif
 				PMADDRL = OUTPacket[2];
 				// Initiate write
 				PMDIN1L = OUTPacket[3];
@@ -584,7 +586,9 @@ void ProcessIO(void)
 
 			case CMD_FPGA_PEEK:		// Read a value from an FPGA register
 				// Load the address
+#ifdef PMP_ADDR_16BIT
 				PMADDRH = OUTPacket[1];
+#endif
 				PMADDRL = OUTPacket[2];
 				// Initiate read
 				INPacket[0] = ERR_OK;
