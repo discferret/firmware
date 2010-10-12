@@ -660,7 +660,7 @@ void ProcessIO(void)
 			case CMD_RAM_WRITE:		// Write a block of data to RAM
 				// Accepts: CMD_RAM_WRITE lenLo lenHi payload
 				// Returns: status
-				i = (OUTPacket[1] << 8) + OUTPacket[0];
+				i = (OUTPacket[2] << 8) + OUTPacket[1];
 				if (i > (USBGEN_EP_SIZE - 3)) {
 					INPacket[counter++] = ERR_INVALID_LEN;
 					break;
@@ -678,7 +678,7 @@ void ProcessIO(void)
 			case CMD_RAM_READ:		// Read a block of data from RAM and return it
 				// Accepts: CMD_RAM_READ  lenLo lenHi
 				// Returns: status  payload
-				i = (OUTPacket[1] << 8) + OUTPacket[0];
+				i = (OUTPacket[2] << 8) + OUTPacket[1];
 				if (i > (USBGEN_EP_SIZE - 1)) {
 					INPacket[counter++] = ERR_INVALID_LEN;
 					break;
