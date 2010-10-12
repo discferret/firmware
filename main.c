@@ -687,7 +687,7 @@ void ProcessIO(void)
 				PMP_ADDR_SETW(R_SRAM_DATA);
 				// Read data from the FPGA
 				for (j=1; j<i+1; j++) {
-					INPacket[j] = PMP_READ();
+					INPacket[j] = PMDIN1L;
 				}
 				// Success!
 				INPacket[counter++] = ERR_OK;
