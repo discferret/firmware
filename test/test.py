@@ -44,10 +44,10 @@ class UsbPic:
 			return 0
 
 	def read(self, ep, size, timeout = 100):
-		try:
+#		try:
 			return self.handle.bulkRead(ep, size, timeout) # return data read
-		except:
-			return []
+#		except:
+#			return []
 
 	def getDeviceManufacturer(self):
 		return self.handle.getString(1, 40)
@@ -79,8 +79,8 @@ CMD_NOP				= 0
 CMD_FPGA_INIT		= 1
 CMD_FPGA_LOAD		= 2
 CMD_FPGA_POLL		= 3
-CMD_POKE			= 4
-CMD_PEEK			= 5
+CMD_FPGA_POKE		= 4
+CMD_FPGA_PEEK		= 5
 
 ERR_OK				= 0
 ERR_HARDWARE_ERROR	= 1
@@ -167,4 +167,32 @@ else:
 	print "FPGA status code unknown, is %d, wanted %d or %d" % (resp[0], ERR_OK, ERR_FPGA_NOT_CONF)
 	sys.exit(-1)
 
+## try peeking a few addresses
+resp = rwop(dev, 1, [CMD_FPGA_PEEK, 0x00, 0x55], 1, 5000)
+if (len(resp) > 1):
+	print "peek(0x0055) = 0x%02X 0x%02X" % (resp[0], resp[1])
+else:
+	print "peek(0x0055) = 0x%02X" % resp[0]
+resp = rwop(dev, 1, [CMD_FPGA_PEEK, 0xAA, 0x55], 1, 5000)
+if (len(resp) > 1):
+	print "peek(0xAA55) = 0x%02X 0x%02X" % (resp[0], resp[1])
+else:
+	print "peek(0xAA55) = 0x%02X" % resp[0]
+resp = rwop(dev, 1, [CMD_FPGA_PEEK, 0xEA, 0xBE], 1, 5000)
+if (len(resp) > 1):
+	print "peek(0xEABE) = 0x%02X 0x%02X" % (resp[0], resp[1])
+else:
+	print "peek(0xEABE) = 0x%02X" % resp[0]
+
+
+## poke then peek
+print
+print "---- poke then peek ----"
+resp = rwop(dev, 1, [CMD_FPGA_POKE, 0x00, 0x55, 0xEB], 1, 5000)
+print "poke(0x0055, 0xEB) = 0x%02X" % resp[0]
+resp = rwop(dev, 1, [CMD_FPGA_PEEK, 0x00, 0x55], 1, 5000)
+if (len(resp) > 1):
+	print "peek(0x0055) = 0x%02X 0x%02X" % (resp[0], resp[1])
+else:
+	print "peek(0x0055) = 0x%02X" % resp[0]
 

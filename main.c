@@ -414,6 +414,17 @@ void UserInit(void)
 	SSP1STAT = 0b01000000;		// CKE=1 (xmit on active->idle edge)
 	SSP1CON1 = 0b00100000;		// CKP=0 (clock is idle-low / active-high)
 								// and enable the MSSP
+
+	// Configure the Parallel Master Port
+	PMCONH   = 0b00010011;		// PMP off, mux address onto PMD[7:0], byte-enable off, RD/WR on
+	PMCONL   = 0b00100011;		// PMCS as ADDR[15:14], addr latch and RD/WR active-high
+	PMMODEH  = 0b00000010;		// no interrupts, no increment, 8-bit, Master Mode 2
+	PMMODEL  = 0b00000000;		// no additional wait states
+	PMEH     = 0b00000000;		// PMAs are port I/O
+	PMEL     = 0b00000011;		// PMAs are port I/O, PMALH and PMALL enabled
+	PMSTATH  = 0;
+	PMSTATL  = 0;
+	PMCONHbits.PMPEN = 1;		// Enable the PMP
 }//end UserInit
 
 enum {
@@ -453,7 +464,9 @@ enum {
 	CMD_NOP				= 0,
 	CMD_FPGA_INIT		= 1,
 	CMD_FPGA_LOAD		= 2,
-	CMD_FPGA_POLL		= 3
+	CMD_FPGA_POLL		= 3,
+	CMD_FPGA_POKE		= 4,
+	CMD_FPGA_PEEK		= 5
 };
 
 enum {
@@ -552,6 +565,32 @@ void ProcessIO(void)
 					INPacket[0] = ERR_FPGA_NOT_CONF;
 				}
 				USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)&INPacket, 1);
+				break;
+
+			case CMD_FPGA_POKE:		// Write a value into an FPGA register
+				// Load the address
+				PMADDRH = OUTPacket[1];
+				PMADDRL = OUTPacket[2];
+				// Initiate write
+				PMDIN1L = OUTPacket[3];
+				// Send response
+				INPacket[0] = ERR_OK;
+				USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)&INPacket, 1);
+				break;
+
+			case CMD_FPGA_PEEK:		// Read a value from an FPGA register
+				// Load the address
+				PMADDRH = OUTPacket[1];
+				PMADDRL = OUTPacket[2];
+				// Initiate read
+				INPacket[0] = ERR_OK;
+				INPacket[1] = PMDIN1L;
+				// Wait for read completion
+				while (PMMODEHbits.BUSY);
+				// Get data that the PMP read
+				INPacket[1] = PMDIN1L;
+				// Send response
+				USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)&INPacket, 2);
 				break;
 		}
 
