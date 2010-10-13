@@ -664,7 +664,7 @@ void ProcessIO(void)
 									// TODO: Speed this up! Allow longer packets!
 				// Accepts: CMD_RAM_WRITE lenLo lenHi payload
 				// Returns: status
-				i = (OUTPacket[2] << 8) + OUTPacket[1];
+				i = ((unsigned int)OUTPacket[2] << 8) + (unsigned int)OUTPacket[1];
 				if (i > (USBGEN_EP_SIZE - 3)) {
 					INPacket[counter++] = ERR_INVALID_LEN;
 					break;
@@ -683,7 +683,7 @@ void ProcessIO(void)
 									// TODO: Speed this up! Allow longer packets!
 				// Accepts: CMD_RAM_READ  lenLo lenHi
 				// Returns: status  payload
-				i = (OUTPacket[2] << 8) + OUTPacket[1];
+				i = ((unsigned int)OUTPacket[2] << 8) + (unsigned int)OUTPacket[1];
 				if (i > (USBGEN_EP_SIZE - 1)) {
 					INPacket[counter++] = ERR_INVALID_LEN;
 					break;
@@ -723,6 +723,7 @@ void ProcessIO(void)
 				INPacket[counter++] = PMP_READ();
 				PMP_ADDR_SETW(R_MICROCODE_VER_L);	// Microcode version lo
 				INPacket[counter++] = PMP_READ();
+				break;
 		}
 
 		// Send IN buffer data (if any)
