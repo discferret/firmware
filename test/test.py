@@ -149,13 +149,25 @@ class DiscFerret:
 		else:
 			return False
 
-	def ramWrite(self, data):
-		return False
+	def ramWrite(self, block):
+		# TODO: raise exception if len(block) > 61
+		packet = [CMD_RAM_WRITE, len(block) & 0xff, (len(block) >> 8) & 0xff]
+		packet.extend(block)
+		self.write(1, packet)
+		resp = self.read(0x81, 1)
+		return resp[0]
 
 	def ramRead(self, nbytes):
-		return False
+		# TODO: raise exception if nbytes > 63
+		packet = [CMD_RAM_READ, nbytes & 0xff, (nbytes >> 8) & 0xff]
+		self.write(1, packet)
+		resp = self.read(0x81, nbytes+1)
+		if resp[0] == ERR_OK:
+			return resp[1:]
+		else:
+			return False
 
-######################################################################################################
+#############################################################################
 
 # swap the bits in a byte
 def bitswap(num):
@@ -242,4 +254,13 @@ else:
 	sys.exit(-1)
 
 print dev.getDeviceInfo()
+print "current ram address: %06X" % dev.getRAMAddr()
+print "set addr to zero, resp: %d" % dev.setRAMAddr(0)
+print "read 32 byte block:\n   ",
+print dev.ramRead(32)
+print "set addr to zero, resp: %d" % dev.setRAMAddr(0)
+print "write incrementing sequence: %d" % dev.ramWrite(range(32))
+print "set addr to zero, resp: %d" % dev.setRAMAddr(0)
+print "read 32 byte block:\n   ",
+print dev.ramRead(32)
 
