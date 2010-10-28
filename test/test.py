@@ -13,15 +13,22 @@ ACQ_START_EVT			= 0x06
 ACQ_STOP_EVT			= 0x07
 ACQ_START_NUM			= 0x08
 ACQ_STOP_NUM			= 0x09
-ACQ_HSTMD_THR_START		= 0x0A
-ACQ_HSTMD_THR_STOP		= 0x0B
-MFM_SYNCWORD_START_L	= 0x0C
-MFM_SYNCWORD_START_H	= 0x0D
-MFM_SYNCWORD_STOP_L		= 0x0E
-MFM_SYNCWORD_STOP_H		= 0x0F
-STEP_RATE				= 0x10	# step rate, 250us per count
-STEP_CMD				= 0x11	# step command, bit7=direction, rest=num steps
-MFM_CLKSEL				= 0x12	# MFM clock select
+
+ACQ_HSTMD_THR_START		= 0x10
+ACQ_HSTMD_THR_STOP		= 0x11
+
+MFM_SYNCWORD_START_L	= 0x20
+MFM_SYNCWORD_START_H	= 0x21
+MFM_SYNCWORD_STOP_L		= 0x22
+MFM_SYNCWORD_STOP_H		= 0x23
+MFM_MASK_START_L		= 0x24
+MFM_MASK_START_H		= 0x25
+MFM_MASK_STOP_L			= 0x26
+MFM_MASK_STOP_H			= 0x27
+MFM_CLKSEL				= 0x2F	# MFM clock select
+
+STEP_RATE				= 0xF0	# step rate, 250us per count
+STEP_CMD				= 0xFF	# step command, bit7=direction, rest=num steps
 
 # Status registers (read only)
 STATUS1					= 0x0E
@@ -426,27 +433,32 @@ print "abort acquisition: %d" % dev.poke(ACQCON, ACQCON_ABORT)
 dev.debug_dump_status()
 print
 
-"""
-# Demo of MFM-synched start/stop for 3.5in DSDD (720K) discs
-# set start/stop sync words to 0x4489
-print "set start mfm hi: resp %d" % dev.poke(MFM_SYNCWORD_START_H, 0x44)
-print "set start mfm lo: resp %d" % dev.poke(MFM_SYNCWORD_START_L, 0x89)
-print "set stop  mfm hi: resp %d" % dev.poke(MFM_SYNCWORD_STOP_H,  0x44)
-print "set stop  mfm lo: resp %d" % dev.poke(MFM_SYNCWORD_STOP_L,  0x89)
-print "set start event: resp %d" % dev.poke(ACQ_START_EVT, ACQ_EVENT_MFM)
-print "set start count: resp %d" % dev.poke(ACQ_START_NUM, 1)
-print "set stop  event: resp %d" % dev.poke(ACQ_STOP_EVT, ACQ_EVENT_MFM)
-print "set stop  count: resp %d" % dev.poke(ACQ_STOP_NUM, 31)
-print "set mfm clock rate: resp %d" % dev.poke(MFM_CLKSEL, MFM_CLKSEL_250KBPS)
-"""
+MFM_SYNC=True
+if MFM_SYNC:
+	# Demo of MFM-synched start/stop for 3.5in DSDD (720K) discs
+	# set start/stop sync words to 0x4489
+	print "set start mfm hi: resp %d" % dev.poke(MFM_SYNCWORD_START_H, 0x44)
+	print "set start mfm lo: resp %d" % dev.poke(MFM_SYNCWORD_START_L, 0x89)
+	print "set stop  mfm hi: resp %d" % dev.poke(MFM_SYNCWORD_STOP_H,  0x44)
+	print "set stop  mfm lo: resp %d" % dev.poke(MFM_SYNCWORD_STOP_L,  0x89)
 
-# start event: index pulse, second instance
-print "set start event: resp %d" % dev.poke(ACQ_START_EVT, ACQ_EVENT_INDEX)
-print "set start count: resp %d" % dev.poke(ACQ_START_NUM, 1)
-# stop event: index pulse, first instance
-print "set stop  event: resp %d" % dev.poke(ACQ_STOP_EVT, ACQ_EVENT_INDEX)
-print "set stop  count: resp %d" % dev.poke(ACQ_STOP_NUM, 0)
+	print "set start mask hi: resp %d" % dev.poke(MFM_MASK_START_H, 0xFF)
+	print "set start mask lo: resp %d" % dev.poke(MFM_MASK_START_L, 0xFF)
+	print "set stop  mask hi: resp %d" % dev.poke(MFM_MASK_STOP_H,  0xFF)
+	print "set stop  mask lo: resp %d" % dev.poke(MFM_MASK_STOP_L,  0xFF)
 
+	print "set start event: resp %d" % dev.poke(ACQ_START_EVT, ACQ_EVENT_MFM)
+	print "set start count: resp %d" % dev.poke(ACQ_START_NUM, 1)
+	print "set stop  event: resp %d" % dev.poke(ACQ_STOP_EVT, ACQ_EVENT_MFM)
+	print "set stop  count: resp %d" % dev.poke(ACQ_STOP_NUM, 31)
+	print "set mfm clock rate: resp %d" % dev.poke(MFM_CLKSEL, MFM_CLKSEL_250KBPS)
+else:
+	# start event: index pulse, second instance
+	print "set start event: resp %d" % dev.poke(ACQ_START_EVT, ACQ_EVENT_INDEX)
+	print "set start count: resp %d" % dev.poke(ACQ_START_NUM, 1)
+	# stop event: index pulse, first instance
+	print "set stop  event: resp %d" % dev.poke(ACQ_STOP_EVT, ACQ_EVENT_INDEX)
+	print "set stop  count: resp %d" % dev.poke(ACQ_STOP_NUM, 0)
 
 # HSTMD thresholds don't need to be set
 
