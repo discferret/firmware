@@ -11,14 +11,16 @@ DRIVE_CONTROL			= 0x04
 ACQCON					= 0x05
 ACQ_START_EVT			= 0x06
 ACQ_STOP_EVT			= 0x07
-ACQ_HSTMD_THR_START		= 0x08
-ACQ_HSTMD_THR_STOP		= 0x09
-MFM_SYNCWORD_START_L	= 0x0A
-MFM_SYNCWORD_START_H	= 0x0B
-MFM_SYNCWORD_STOP_L		= 0x0C
-MFM_SYNCWORD_STOP_H		= 0x0D
-STEP_RATE				= 0x0E	# step rate, 250us per count
-STEP_CMD				= 0x0F	# step command, bit7=direction, rest=num steps
+ACQ_START_NUM			= 0x08
+ACQ_STOP_NUM			= 0x09
+ACQ_HSTMD_THR_START		= 0x0A
+ACQ_HSTMD_THR_STOP		= 0x0B
+MFM_SYNCWORD_START_L	= 0x0C
+MFM_SYNCWORD_START_H	= 0x0D
+MFM_SYNCWORD_STOP_L		= 0x0E
+MFM_SYNCWORD_STOP_H		= 0x0F
+STEP_RATE				= 0x10	# step rate, 250us per count
+STEP_CMD				= 0x11	# step command, bit7=direction, rest=num steps
 
 # Status registers (read only)
 STATUS1					= 0x0E
@@ -52,12 +54,11 @@ ACQCON_RATE_125KBPS		= (0x03 << 6)
 
 # -----
 # masks and events for ACQ_*_EVT registers
-ACQ_NUM_MASK			= 0x1f
-ACQ_EVENT_IMMEDIATE		= 0
-ACQ_EVENT_INDEX			= (0x01 << 5)
-ACQ_EVENT_MFM			= (0x02 << 5)
-# "wait for HSTMD" combination bit
-ACQ_HSTMD				= (0x04 << 5)
+ACQ_EVENT_IMMEDIATE		= 0x00
+ACQ_EVENT_INDEX			= 0x01
+ACQ_EVENT_MFM			= 0x02
+# "wait for HSTMD before acq" combination bit
+ACQ_EVENT_WAIT_HSTMD	= 0x80
 
 # -----
 # Status bits
@@ -429,17 +430,24 @@ print "set start mfm hi: resp %d" % dev.poke(MFM_SYNCWORD_START_H, 0x44)
 print "set start mfm lo: resp %d" % dev.poke(MFM_SYNCWORD_START_L, 0x89)
 print "set stop  mfm hi: resp %d" % dev.poke(MFM_SYNCWORD_STOP_H,  0x44)
 print "set stop  mfm lo: resp %d" % dev.poke(MFM_SYNCWORD_STOP_L,  0x89)
-print "set start event: resp %d" % dev.poke(ACQ_START_EVT, ACQ_EVENT_MFM | (1 & ACQ_NUM_MASK))
-print "set start event: resp %d" % dev.poke(ACQ_STOP_EVT, ACQ_EVENT_MFM | (31 & ACQ_NUM_MASK))
-acqcon_v = acqcon | ACQCON_RATE_250KBPS
+print "set start event: resp %d" % dev.poke(ACQ_START_EVT, ACQ_EVENT_MFM)
+print "set start count: resp %d" % dev.poke(ACQ_START_NUM, 1)
+print "set stop  event: resp %d" % dev.poke(ACQ_STOP_EVT, ACQ_EVENT_MFM)
+print "set stop  count: resp %d" % dev.poke(ACQ_STOP_NUM, 31)
+acqcon_v = acqcon_v | ACQCON_RATE_250KBPS
 print "set mfm clock rate: resp %d" % dev.poke(ACQCON, acqcon_v)
 """
 
 # start event: index pulse, second instance
-#print "set start event: resp %d" % dev.poke(ACQ_START_EVT, ACQ_EVENT_INDEX | (1 & ACQ_NUM_MASK))
+print "set start event: resp %d" % dev.poke(ACQ_START_EVT, ACQ_EVENT_INDEX)
+print "set start count: resp %d" % dev.poke(ACQ_START_NUM, 1)
 # stop event: index pulse, first instance
-#print "set stop event: resp %d" % dev.poke(ACQ_STOP_EVT, ACQ_EVENT_INDEX | (0 & ACQ_NUM_MASK))
+print "set stop  event: resp %d" % dev.poke(ACQ_STOP_EVT, ACQ_EVENT_INDEX)
+print "set stop  count: resp %d" % dev.poke(ACQ_STOP_NUM, 0)
+
+
 # HSTMD thresholds don't need to be set
+
 # set step rate to 6ms
 print "set step rate: resp %d" % dev.poke(STEP_RATE, 6000/250)
 
