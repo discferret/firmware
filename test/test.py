@@ -21,6 +21,7 @@ MFM_SYNCWORD_STOP_L		= 0x0E
 MFM_SYNCWORD_STOP_H		= 0x0F
 STEP_RATE				= 0x10	# step rate, 250us per count
 STEP_CMD				= 0x11	# step command, bit7=direction, rest=num steps
+MFM_CLKSEL				= 0x12	# MFM clock select
 
 # Status registers (read only)
 STATUS1					= 0x0E
@@ -47,10 +48,6 @@ DRIVE_CONTROL_SIDESEL	= 0x80
 # ACQCON bits
 ACQCON_ABORT			= 0x02
 ACQCON_START			= 0x01
-ACQCON_RATE_1MBPS		= (0x00 << 6)
-ACQCON_RATE_500KBPS		= (0x01 << 6)
-ACQCON_RATE_250KBPS		= (0x02 << 6)
-ACQCON_RATE_125KBPS		= (0x03 << 6)
 
 # -----
 # masks and events for ACQ_*_EVT registers
@@ -59,6 +56,13 @@ ACQ_EVENT_INDEX			= 0x01
 ACQ_EVENT_MFM			= 0x02
 # "wait for HSTMD before acq" combination bit
 ACQ_EVENT_WAIT_HSTMD	= 0x80
+
+# -----
+# legal MFM_CLKSEL values
+MFM_CLKSEL_1MBPS		= 0x00
+MFM_CLKSEL_500KBPS		= 0x01
+MFM_CLKSEL_250KBPS		= 0x02
+MFM_CLKSEL_125KBPS		= 0x03
 
 # -----
 # Status bits
@@ -422,7 +426,6 @@ print "abort acquisition: %d" % dev.poke(ACQCON, ACQCON_ABORT)
 dev.debug_dump_status()
 print
 
-acqcon_v = 0
 """
 # Demo of MFM-synched start/stop for 3.5in DSDD (720K) discs
 # set start/stop sync words to 0x4489
@@ -434,8 +437,7 @@ print "set start event: resp %d" % dev.poke(ACQ_START_EVT, ACQ_EVENT_MFM)
 print "set start count: resp %d" % dev.poke(ACQ_START_NUM, 1)
 print "set stop  event: resp %d" % dev.poke(ACQ_STOP_EVT, ACQ_EVENT_MFM)
 print "set stop  count: resp %d" % dev.poke(ACQ_STOP_NUM, 31)
-acqcon_v = acqcon_v | ACQCON_RATE_250KBPS
-print "set mfm clock rate: resp %d" % dev.poke(ACQCON, acqcon_v)
+print "set mfm clock rate: resp %d" % dev.poke(MFM_CLKSEL, MFM_CLKSEL_250KBPS)
 """
 
 # start event: index pulse, second instance
@@ -474,7 +476,7 @@ dev.debug_dump_status()
 time.sleep(1)
 
 # start acquisition
-print "start acq: resp %d" % dev.poke(ACQCON, acqcon_v | ACQCON_START)
+print "start acq: resp %d" % dev.poke(ACQCON, ACQCON_START)
 # dump status
 dev.debug_dump_status()
 
