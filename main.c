@@ -378,8 +378,12 @@ void UserInit(void)
 	LATF = 0b00000000;
 	LATG = 0b00000000;
 	LATH = 0b00000000;
-	// MCULED off, rest held low
-	LATJ = 0b01000000;
+	LATJ = 0b00000000;
+
+	// Turn MCULED off
+	PIN_MCULED = 1;
+	// Stop FPGA configuration
+	PIN_FCNCONF = 1;
 
 	// Set up ports
 	// PORTA: All open-circuit; set as output driving low
@@ -414,7 +418,11 @@ void UserInit(void)
 #endif
 	PMCONL   = 0b00100011;		// PMCS as ADDR[15:14], addr latch and RD/WR active-high
 	PMMODEH  = 0b00000010;		// no interrupts, no increment, 8-bit, Master Mode 2
+#ifdef PMP_SLOW
+	PMMODEL  = 0xff;			// slowest possible PMP mode
+#else
 	PMMODEL  = 0b00000000;		// no additional wait states
+#endif
 	PMEH     = 0b00000000;		// PMAs are port I/O
 	PMEL     = 0b00000011;		// PMAs are port I/O, PMALH and PMALL enabled
 	PMSTATH  = 0;

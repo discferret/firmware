@@ -113,104 +113,110 @@
     #define GetSystemClock()  CLOCK_FREQ   
     #define GetInstructionClock() CLOCK_FREQ   
 
-/**************
- * PORT MAPPINGS
- *
- * PORTA
- *   5: nc
- *   4: nc
- *   3: nc
- *   2: nc
- *   1: nc
- *   0: nc
- *
- * PORTB
- *   7: ICSP_PGD	Reserved for ICSP
- *   6: ICSP_PGC	Reserved for ICSP
- *   5: PMALL	--> Parallel Master Port Address Load Low
- *   4: PMALH	--> Parallel Master Port Address Load High
- *   3: nc
- *   2: nc
- *   1: nc
- *   0: nc
- *
- * PORTC
- *   7: RX1		--> UART port RX
- *   6: TX1		--> UART port TX
- *   5: FCDATA0	--> FPGA Config Data 0	(MSSP Master Mode SPI Data Out  / MOSI)
- *   4: =1		--> Tied to VCC			(MSSP Master Mode SPI Data In   / MISO)
- *   3: FCDCLK	--> FPGA Config Clock	(MSSP Master Mode SPI Clock Out / SCLK)
- *   2: nc
- *   1: nc
- *   0: nc
- *
- * PORTD
- *   7: PMD7	}
- *   6: PMD6	}
- *   5: PMD5	}
- *   4: PMD4	}	Parallel Master Port
- *   3: PMD3	}	Data Bus
- *   2: PMD2	}
- *   1: PMD1	}
- *   0: PMD0	}
- *
- * PORTE
- *   7: nc
- *   6: nc
- *   5: nc
- *   4: nc
- *   3: nc
- *   2: nc
- *   1: PMWR	--> Parallel Master Port Write
- *   0: PMRD	--> Parallel Master Port Read
- *
- * PORTF
- *   7: nc
- *   6: nc
- *   5: nc
- *   4: USB D+
- *   3: USB D-
- *   2: USBDET	--> =1 if USB plug is connected
- *
- * PORTG
- *   4: nc
- *   3: nc
- *   2: nc
- *   1: nc
- *   0: FCNCONF	-->	FPGA Configuration nCONFIG
- *
- * PORTH
- *   7: nc
- *   6: nc
- *   5: nc
- *   4: nc
- *   3: nc
- *   2: nc
- *   1: nc
- *   0: nc
- *
- * PORTJ
- *   7: nc
- *   6: MCULED	--> =0 to turn LED on
- *   5: BOOT	--> =0 if Force Bootloader jumper closed
- *   4: nc
- *   3: FCDONE	--> FPGA Config Done
- *   2: FCNSTAT	--> FPGA Config nSTATUS
- *   1: nc
- *   0: nc
- */
-
-#define	PIN_FCDATA0	LATCbits.LATC5
-#define	PIN_FCDCLK	LATCbits.LATC3
-#define	PIN_FCNCONF	LATGbits.LATG0
-#define	PIN_FCDONE	PORTJbits.RJ3
-#define	PIN_FCNSTAT	PORTJbits.RJ2
-
-#define PIN_MCULED	LATJbits.LATJ6
-#define	PIN_BOOT	PORTJbits.RJ5
+	/**************
+	 * PORT MAPPINGS
+	 *
+	 * PORTA
+	 *   5: nc
+	 *   4: nc
+	 *   3: nc
+	 *   2: nc
+	 *   1: nc
+	 *   0: nc
+	 *
+	 * PORTB
+	 *   7: ICSP_PGD	Reserved for ICSP
+	 *   6: ICSP_PGC	Reserved for ICSP
+	 *   5: PMALL	--> Parallel Master Port Address Load Low
+	 *   4: PMALH	--> Parallel Master Port Address Load High
+	 *   3: nc
+	 *   2: nc
+	 *   1: nc
+	 *   0: nc
+	 *
+	 * PORTC
+	 *   7: RX1		--> UART port RX
+	 *   6: TX1		--> UART port TX
+	 *   5: FCDATA0	--> FPGA Config Data 0	(MSSP Master Mode SPI Data Out  / MOSI)
+	 *   4: =1		--> Tied to VCC			(MSSP Master Mode SPI Data In   / MISO)
+	 *   3: FCDCLK	--> FPGA Config Clock	(MSSP Master Mode SPI Clock Out / SCLK)
+	 *   2: nc
+	 *   1: nc
+	 *   0: nc
+	 *
+	 * PORTD
+	 *   7: PMD7	}
+	 *   6: PMD6	}
+	 *   5: PMD5	}
+	 *   4: PMD4	}	Parallel Master Port
+	 *   3: PMD3	}	Data Bus
+	 *   2: PMD2	}
+	 *   1: PMD1	}
+	 *   0: PMD0	}
+	 *
+	 * PORTE
+	 *   7: nc
+	 *   6: nc
+	 *   5: nc
+	 *   4: nc
+	 *   3: nc
+	 *   2: nc
+	 *   1: PMWR	--> Parallel Master Port Write
+	 *   0: PMRD	--> Parallel Master Port Read
+	 *
+	 * PORTF
+	 *   7: nc
+	 *   6: nc
+	 *   5: nc
+	 *   4: USB D+
+	 *   3: USB D-
+	 *   2: USBDET	--> =1 if USB plug is connected
+	 *
+	 * PORTG
+	 *   4: nc
+	 *   3: nc
+	 *   2: nc
+	 *   1: nc
+	 *   0: FCNCONF	-->	FPGA Configuration nCONFIG
+	 *
+	 * PORTH
+	 *   7: nc
+	 *   6: nc
+	 *   5: nc
+	 *   4: nc
+	 *   3: nc
+	 *   2: nc
+	 *   1: nc
+	 *   0: nc
+	 *
+	 * PORTJ
+	 *   7: nc
+	 *   6: MCULED	--> =0 to turn LED on
+	 *   5: BOOT	--> =0 if Force Bootloader jumper closed
+	 *   4: nc
+	 *   3: FCDONE	--> FPGA Config Done
+	 *   2: FCNSTAT	--> FPGA Config nSTATUS
+	 *   1: nc
+	 *   0: nc
+	 */
+	
+	#define	PIN_FCDATA0	LATCbits.LATC5
+	#define	PIN_FCDCLK	LATCbits.LATC3
+	#define	PIN_FCNCONF	LATGbits.LATG0
+	#define	PIN_FCDONE	PORTJbits.RJ3
+	#define	PIN_FCNSTAT	PORTJbits.RJ2
+	
+	#define PIN_MCULED	LATJbits.LATJ6
+	#define	PIN_BOOT	PORTJbits.RJ5
 
     /** I/O pin definitions ********************************************/
     #define INPUT_PIN 1
     #define OUTPUT_PIN 0
+
+
+    /** Configuration options *****************************************/
+	// Define this to slow down the Parallel Master Port
+	//#define PMP_SLOW
+
 
 #endif  //HARDWARE_PROFILE_H
