@@ -8,9 +8,10 @@ GNU General Public License apply to the DiscFerret code.
 The GNU GPL does NOT extend to software written to interface with the
 DiscFerret microcode or firmware, nor does it extend to the Microchip USB
 Applications Library which is included in the Firmware bundle. The UAL is
-distributed under a separate license, whose terms are include in the text
-file "LICENSE" in the "Microchip" directory. ONLY THE FILES IN THE
-"Microchip" directory are covered by the Microchip license.
+distributed under a separate license, whose terms are include in the file
+"Microchip Application Solutions Users Agreement.pdf" in the "Microchip"
+directory. ONLY THE FILES IN THE "Microchip" DIRECTORY ARE COVERED BY THE
+MICROCHIP LICENSE.
 
 For your reference, the full text of the GNU GPL is included below.
 
