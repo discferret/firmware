@@ -493,14 +493,26 @@ enum {
 	R_ACQCON			= 5,
 	R_ACQ_START_EVT		= 6,
 	R_ACQ_STOP_EVT		= 7,
-	R_HSTMD_THR_START	= 8,
-	R_HSTMD_THR_STOP	= 9,
-	R_SYNCWORD_START_L	= 0x0a,
-	R_SYNCWORD_START_H	= 0x0b,
-	R_SYNCWORD_STOP_L	= 0x0c,
-	R_SYNCWORD_STOP_H	= 0x0d,
-	R_STEP_RATE			= 0x0e,
-	R_STEP_COMMAND		= 0x0f,
+	R_ACQ_START_NUM		= 8,
+	R_ACQ_STOP_NUM		= 9,
+
+	R_HSTMD_THR_START	= 0x10,
+	R_HSTMD_THR_STOP	= 0x11,
+
+	R_SYNCWORD_START_L	= 0x20,
+	R_SYNCWORD_START_H	= 0x21,
+	R_SYNCWORD_STOP_L	= 0x22,
+	R_SYNCWORD_STOP_H	= 0x23,
+	R_MASK_START_L		= 0x24,
+	R_MASK_START_H		= 0x25,
+	R_MASK_STOP_L		= 0x26,
+	R_MASK_STOP_H		= 0x27,
+	R_MFM_CLKSEL		= 0x2F,
+
+	R_SCRATCHPAD		= 0x30,
+
+	R_STEP_RATE			= 0xf0,
+	R_STEP_COMMAND		= 0xff,
 
 	R_MICROCODE_TYPE_L	= 0x04,
 	R_MICROCODE_TYPE_H	= 0x05,
@@ -518,7 +530,15 @@ enum {
 #define PMP_ADDR_SETW(w)	{ PMADDRL = (w) & 0xff; }
 #endif
 
-#define PMP_WRITE(x)		{ PMDIN1L = x; }
+//#define PMP_WRITE(x)		{ PMDIN1L = x; }
+
+void PMP_WRITE(unsigned char x)
+{
+	// Wait for PMP to be idle
+	while (PMMODEHbits.BUSY);
+	// Send data byte
+	PMDIN1L = x;
+}
 
 unsigned char PMP_READ(void)
 {
