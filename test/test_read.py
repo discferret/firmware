@@ -297,6 +297,10 @@ def bitswap(num):
 
 #############################################################################
 
+InitFPGA = True
+
+#############################################################################
+
 # open the discferret
 dev = DiscFerret()
 if not dev.open():
@@ -305,61 +309,61 @@ if not dev.open():
 else:
 	print "Device opened successfully"
 
-"""
-print "Initialising FPGA...",
-# FPGA LOAD INIT -- start a microcode load
-resp = dev.fpgaLoadBegin()
-if resp == ERR_OK:
-	print "OK!",
-else:
-	print "Failed with status code %d" % resp
-	sys.exit(-1)
-
-# poll fpga status
-resp = dev.fpgaGetLoadStatus()
-if resp == ERR_FPGA_NOT_CONF:
-	print "(FPGA is waiting for microcode load)"
-elif resp == ERR_OK:
-	print "(FPGA microcode is active)"
-else:
-	print "FPGA status code unknown, is %d, wanted %d or %d" % (resp, ERR_OK, ERR_FPGA_NOT_CONF)
-	sys.exit(-1)
-
-# load RBF file
-try:
-	f = open("microcode.rbf", "rb")
-	rbfstr = f.read()
-	if len(rbfstr) < 1:
-		raise -1
-	f.close()
-except:
-	print "Microcode file read error"
-	sys.exit(-1)
-
-print "RBF file contains %d data bytes" % len(rbfstr)
-
-# bitswap the RBF file
-rbf = list()
-for x in range(len(rbfstr)):
-	rbf.append(bitswap(struct.unpack('B', rbfstr[x])[0]))
-
-# now send the RBF to the PIC
-pos = 0
-while pos < len(rbf):
-	# if we have more than 62 bytes to send, then send the first 62
-	if (len(rbf)-pos) > 62:
-		i = 62
+if InitFPGA:
+	print "Initialising FPGA...",
+	# FPGA LOAD INIT -- start a microcode load
+	resp = dev.fpgaLoadBegin()
+	if resp == ERR_OK:
+		print "OK!",
 	else:
-		i = (len(rbf)-pos)
-
-	resp = dev.fpgaLoadBlock(rbf[pos:pos+i])
-	if resp != ERR_OK:
-		print "FPGA microcode block transfer failed at addr=%04X, err=%d" % (pos, resp)
+		print "Failed with status code %d" % resp
 		sys.exit(-1)
 
-	# update pointer
-	pos += i
-"""
+	# poll fpga status
+	resp = dev.fpgaGetLoadStatus()
+	if resp == ERR_FPGA_NOT_CONF:
+		print "(FPGA is waiting for microcode load)"
+	elif resp == ERR_OK:
+		print "(FPGA microcode is active)"
+	else:
+		print "FPGA status code unknown, is %d, wanted %d or %d" % (resp, ERR_OK, ERR_FPGA_NOT_CONF)
+		sys.exit(-1)
+
+	# load RBF file
+	try:
+		f = open("microcode.rbf", "rb")
+		rbfstr = f.read()
+		if len(rbfstr) < 1:
+			raise -1
+		f.close()
+	except:
+		print "Microcode file read error"
+		sys.exit(-1)
+
+	print "RBF file contains %d data bytes" % len(rbfstr)
+
+	# bitswap the RBF file
+	rbf = list()
+	for x in range(len(rbfstr)):
+		rbf.append(bitswap(struct.unpack('B', rbfstr[x])[0]))
+
+	# now send the RBF to the PIC
+	pos = 0
+	while pos < len(rbf):
+		# if we have more than 62 bytes to send, then send the first 62
+		if (len(rbf)-pos) > 62:
+			i = 62
+		else:
+			i = (len(rbf)-pos)
+
+		resp = dev.fpgaLoadBlock(rbf[pos:pos+i])
+		if resp != ERR_OK:
+			print "FPGA microcode block transfer failed at addr=%04X, err=%d" % (pos, resp)
+			sys.exit(-1)
+
+		# update pointer
+		pos += i
+
 # poll fpga status
 print "Load complete. FPGA status:",
 resp = dev.fpgaGetLoadStatus()
@@ -372,8 +376,9 @@ else:
 	print "FPGA status code unknown, is %d, wanted %d or %d" % (resp, ERR_OK, ERR_FPGA_NOT_CONF)
 	sys.exit(-1)
 
-"""
 print dev.getDeviceInfo()
+
+"""
 print "current ram address: 0x%06X" % dev.getRAMAddr()
 print "set addr to zero, resp: %d" % dev.setRAMAddr(0)
 print "current ram address: 0x%06X" % dev.getRAMAddr()
@@ -504,15 +509,18 @@ print "start acq: resp %d" % dev.poke(ACQCON, ACQCON_START)
 # dump status
 dev.debug_dump_status()
 
-# wait for acquisition to start
-stat = 0
-while (stat & STATUS1_ACQSTATUS_MASK) != STATUS1_ACQ_ACQUIRING:
-	stat = dev.peek(STATUS1)
-print "acquisition started."
-dev.debug_dump_status()
-stat = STATUS1_ACQ_ACQUIRING
-while (stat & STATUS1_ACQSTATUS_MASK) == STATUS1_ACQ_ACQUIRING:
-	stat = dev.peek(STATUS1)
+foo=True
+while foo:
+	# wait for acquisition to start
+	stat = 0
+	while (stat & STATUS1_ACQSTATUS_MASK) != STATUS1_ACQ_ACQUIRING:
+		stat = dev.peek(STATUS1)
+#	print "acquisition started."
+	dev.debug_dump_status()
+	stat = STATUS1_ACQ_ACQUIRING
+	while (stat & STATUS1_ACQSTATUS_MASK) == STATUS1_ACQ_ACQUIRING:
+		stat = dev.peek(STATUS1)
+	foo=False
 print "acquisition completed."
 dev.debug_dump_status()
 nbytes = dev.getRAMAddr()-1

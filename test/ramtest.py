@@ -11,14 +11,26 @@ DRIVE_CONTROL			= 0x04
 ACQCON					= 0x05
 ACQ_START_EVT			= 0x06
 ACQ_STOP_EVT			= 0x07
-ACQ_HSTMD_THR_START		= 0x08
-ACQ_HSTMD_THR_STOP		= 0x09
-MFM_SYNCWORD_START_L	= 0x0A
-MFM_SYNCWORD_START_H	= 0x0B
-MFM_SYNCWORD_STOP_L		= 0x0C
-MFM_SYNCWORD_STOP_H		= 0x0D
-STEP_RATE				= 0x0E	# step rate, 250us per count
-STEP_CMD				= 0x0F	# step command, bit7=direction, rest=num steps
+ACQ_START_NUM			= 0x08
+ACQ_STOP_NUM			= 0x09
+
+ACQ_HSTMD_THR_START		= 0x10
+ACQ_HSTMD_THR_STOP		= 0x11
+
+MFM_SYNCWORD_START_L	= 0x20
+MFM_SYNCWORD_START_H	= 0x21
+MFM_SYNCWORD_STOP_L		= 0x22
+MFM_SYNCWORD_STOP_H		= 0x23
+MFM_MASK_START_L		= 0x24
+MFM_MASK_START_H		= 0x25
+MFM_MASK_STOP_L			= 0x26
+MFM_MASK_STOP_H			= 0x27
+MFM_CLKSEL				= 0x2F	# MFM clock select
+
+SCRATCHPAD				= 0x30
+
+STEP_RATE				= 0xF0	# step rate, 250us per count
+STEP_CMD				= 0xFF	# step command, bit7=direction, rest=num steps
 
 # Status registers (read only)
 STATUS1					= 0x0E
@@ -43,20 +55,29 @@ DRIVE_CONTROL_SIDESEL	= 0x80
 
 # -----
 # ACQCON bits
+ACQCON_WRITE			= 0x04
 ACQCON_ABORT			= 0x02
 ACQCON_START			= 0x01
-# TODO: ACQCON MFM clock select bits
 
 # -----
 # masks and events for ACQ_*_EVT registers
-ACQ_NUM_MASK			= 0x1f
-ACQ_EVENT_IMMEDIATE		= 0
-ACQ_EVENT_INDEX			= (0x01 << 5)
-ACQ_EVENT_HSTMD			= (0x02 << 5)
+ACQ_EVENT_IMMEDIATE		= 0x00
+ACQ_EVENT_INDEX			= 0x01
+ACQ_EVENT_MFM			= 0x02
+# "wait for HSTMD before acq" combination bit
+ACQ_EVENT_WAIT_HSTMD	= 0x80
+
+# -----
+# legal MFM_CLKSEL values
+MFM_CLKSEL_1MBPS		= 0x00
+MFM_CLKSEL_500KBPS		= 0x01
+MFM_CLKSEL_250KBPS		= 0x02
+MFM_CLKSEL_125KBPS		= 0x03
 
 # -----
 # Status bits
-STATUS1_ACQSTATUS_MASK	= 0x03
+STATUS1_ACQSTATUS_MASK	= 0x07
+STATUS1_ACQ_WRITING		= 0x04
 STATUS1_ACQ_WAITING		= 0x02
 STATUS1_ACQ_ACQUIRING	= 0x01
 STATUS1_ACQ_IDLE		= 0x00
@@ -236,7 +257,9 @@ class DiscFerret:
 		a = self.peek(STATUS1)
 		b = self.peek(STATUS2)
 		# STATUS1
-		if (a & STATUS1_ACQSTATUS_MASK) == STATUS1_ACQ_WAITING:
+		if (a & STATUS1_ACQSTATUS_MASK) == STATUS1_ACQ_WRITING:
+			s = "writing, "
+		elif (a & STATUS1_ACQSTATUS_MASK) == STATUS1_ACQ_WAITING:
 			s = "waiting, "
 		elif (a & STATUS1_ACQSTATUS_MASK) == STATUS1_ACQ_ACQUIRING:
 			s = "acquiring, "
@@ -280,6 +303,11 @@ def bitswap(num):
 
 #############################################################################
 
+# Set to False to disable FPGA microcode loading (use when debugging over JTAG)
+LoadFPGA = True
+
+#############################################################################
+
 # open the discferret
 dev = DiscFerret()
 if not dev.open():
@@ -288,63 +316,65 @@ if not dev.open():
 else:
 	print "Device opened successfully"
 
-"""
-print "Initialising FPGA...",
-# FPGA LOAD INIT -- start a microcode load
-resp = dev.fpgaLoadBegin()
-if resp == ERR_OK:
-	print "OK!",
-else:
-	print "Failed with status code %d" % resp
-	sys.exit(-1)
-
-# poll fpga status
-resp = dev.fpgaGetLoadStatus()
-if resp == ERR_FPGA_NOT_CONF:
-	print "(FPGA is waiting for microcode load)"
-elif resp == ERR_OK:
-	print "(FPGA microcode is active)"
-else:
-	print "FPGA status code unknown, is %d, wanted %d or %d" % (resp, ERR_OK, ERR_FPGA_NOT_CONF)
-	sys.exit(-1)
-
-# load RBF file
-try:
-	f = open("microcode.rbf", "rb")
-	rbfstr = f.read()
-	if len(rbfstr) < 1:
-		raise -1
-	f.close()
-except:
-	print "Microcode file read error"
-	sys.exit(-1)
-
-print "RBF file contains %d data bytes" % len(rbfstr)
-
-# bitswap the RBF file
-rbf = list()
-for x in range(len(rbfstr)):
-	rbf.append(bitswap(struct.unpack('B', rbfstr[x])[0]))
-
-# now send the RBF to the PIC
-pos = 0
-while pos < len(rbf):
-	# if we have more than 62 bytes to send, then send the first 62
-	if (len(rbf)-pos) > 62:
-		i = 62
+if LoadFPGA:
+	print "Initialising FPGA...",
+	# FPGA LOAD INIT -- start a microcode load
+	resp = dev.fpgaLoadBegin()
+	if resp == ERR_OK:
+		print "OK!",
 	else:
-		i = (len(rbf)-pos)
-
-	resp = dev.fpgaLoadBlock(rbf[pos:pos+i])
-	if resp != ERR_OK:
-		print "FPGA microcode block transfer failed at addr=%04X, err=%d" % (pos, resp)
+		print "Failed with status code %d" % resp
 		sys.exit(-1)
 
-	# update pointer
-	pos += i
-"""
+	# poll fpga status
+	resp = dev.fpgaGetLoadStatus()
+	if resp == ERR_FPGA_NOT_CONF:
+		print "(FPGA is waiting for microcode load)"
+	elif resp == ERR_OK:
+		print "(FPGA microcode is active)"
+	else:
+		print "FPGA status code unknown, is %d, wanted %d or %d" % (resp, ERR_OK, ERR_FPGA_NOT_CONF)
+		sys.exit(-1)
+
+	# load RBF file
+	try:
+		f = open("microcode.rbf", "rb")
+		rbfstr = f.read()
+		if len(rbfstr) < 1:
+			raise -1
+		f.close()
+	except:
+		print "Microcode file read error"
+		sys.exit(-1)
+
+	print "RBF file contains %d data bytes" % len(rbfstr)
+
+	# bitswap the RBF file
+	rbf = list()
+	for x in range(len(rbfstr)):
+		rbf.append(bitswap(struct.unpack('B', rbfstr[x])[0]))
+
+	# now send the RBF to the PIC
+	pos = 0
+	while pos < len(rbf):
+		# if we have more than 62 bytes to send, then send the first 62
+		if (len(rbf)-pos) > 62:
+			i = 62
+		else:
+			i = (len(rbf)-pos)
+
+		resp = dev.fpgaLoadBlock(rbf[pos:pos+i])
+		if resp != ERR_OK:
+			print "FPGA microcode block transfer failed at addr=%04X, err=%d" % (pos, resp)
+			sys.exit(-1)
+
+		# update pointer
+		pos += i
+
+	print "Load complete.",
+
+print "FPGA status:",
 # poll fpga status
-print "Load complete. FPGA status:",
 resp = dev.fpgaGetLoadStatus()
 if resp == ERR_FPGA_NOT_CONF:
 	print "FPGA is waiting for microcode load. Microcode load error."
@@ -357,30 +387,92 @@ else:
 
 print "DEVICE INFORMATION:"
 print dev.getDeviceInfo()
+
+#############################################################################
+
+err=False
+print
+print "####################################"
+print "# FPGA <==> MCU COMMUNICATION TEST #"
+print "####################################"
+print
+
+for testval in [0x55, 0xaa, 0x00, 0xff, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0]:
+	dev.poke(SCRATCHPAD, testval)
+	pval = dev.peek(SCRATCHPAD)
+	ival = dev.peek(SCRATCHPAD+1)
+	if (pval != testval):
+		print "ERROR: Wrote 0x%02X to Scratchpad, got pval 0x%02X back." % (testval, pval)
+		err=True
+	if (ival != (testval ^ 0xff)):
+		print "ERROR: Wrote 0x%02X to Scratchpad, got ival 0x%02X back." % (testval, ival)
+		err=True
+
+if err:
+	print "Errors occurred, aborting test sequence."
+	sys.exit(-1)
+else:
+	print "All tests passed."
+	print
+
+#############################################################################
+
+err = False
+print
+print "########################"
+print "# ADDRESS COUNTER TEST #"
+print "########################"
+print
+for val in [0, 0x07ffff, 123456, 0x055555, 0x02aaaa]:
+	print "Set address to 0x%06X - response %d..." % (val, dev.setRAMAddr(val)),
+	ra = dev.getRAMAddr()
+	if ra != val:
+		print "Readback error! Got 0x%06X" % ra
+		err = True
+		break
+	else:
+		print "RAM addr set OK!"
+
+# TODO: test autoincrement for read and write
+
+if err:
+	print "Error occurred, aborting test sequence."
+	sys.exit(-1)
+else:
+	print "All tests passed."
+	print
+
+#############################################################################
+
+err = False
+print
+print "###################"
+print "# STATIC RAM TEST #"
+print "###################"
 print
 
 # RAM length
 # TODO: run the RAM test for 512K, then if it fails, cycle back. This will
 # reveal the location of faulty address bits :)
 RAMLEN=1024*512
+# maximum address counter size
+MAXADDR=(1024*512)-1
 
-# write test
-print "RAM Write Test"
-print "=============="
 print "set addr to zero, resp: %d" % dev.setRAMAddr(0)
 ra = dev.getRAMAddr()
-print "current ram address: 0x%06X (%d)" % (ra, ra)
 if (ra != 0):
-	print "RAMAddr != 0; fail."
+	print "ERROR: RAM address was not zero after Set-to-Zero!"
 	sys.exit(-1)
+print
 
-
-print "generating %d bytes of randomness..." % RAMLEN
+print "Generating %d bytes of randomness..." % RAMLEN,
 buf = []
 for x in range(RAMLEN):
-	buf.append(random.getrandbits(8))
+	buf.append(int(random.getrandbits(8)))
+print "done!"
+print
 
-print "writing %d bytes of data to RAM..." % len(buf)
+print "Writing %d bytes of data to RAM..." % len(buf)
 i = len(buf)
 j = 0
 while i > 0:
@@ -394,15 +486,21 @@ while i > 0:
 		i = 0
 
 ra = dev.getRAMAddr()
-print "current ram address: 0x%06X (%d)" % (ra, ra)
+print "RAM pointer = 0x%06X (%d)" % (ra, ra)
+if (ra != (RAMLEN & MAXADDR)):
+	print "ERROR! I wanted 0x%06X" % (RAMLEN & MAXADDR)
+	sys.exit(-1)
+
+# TODO: check flags!
 dev.debug_dump_status()
 
 ## read back test
+print
+print "Reading %d bytes of data from RAM..." % RAMLEN
 print "set addr to zero, resp: %d" % dev.setRAMAddr(0)
 ra = dev.getRAMAddr()
-print "current ram address: 0x%06X (%d)" % (ra, ra)
 if (ra != 0):
-	print "RAMAddr != 0; fail."
+	print "ERROR: RAM address was not zero after Set-to-Zero!"
 	sys.exit(-1)
 dev.debug_dump_status()
 
@@ -416,10 +514,13 @@ while (i > 0):
 		x = dev.ramRead(i)
 		i = 0
 	rbuf.extend(x)
+print "done."
 
 ra = dev.getRAMAddr()
-print "current ram address: 0x%06X (%d)" % (ra, ra)
-dev.debug_dump_status()
+print "RAM pointer = 0x%06X (%d)" % (ra, ra)
+if (ra != ((RAMLEN+1) & MAXADDR)):
+	print "ERROR! I wanted 0x%06X" % ((RAMLEN+1) & MAXADDR)
+	sys.exit(-1)
 
 print "len buf:  %d" % len(buf)
 print "len rbuf: %d" % len(rbuf)
@@ -429,6 +530,7 @@ cerr = 0
 for x in range(len(buf)):
 	if (rbuf[x] != buf[x]):
 		print "COMPARE ERROR at 0x%06X" % x
+		print "\tWrote 0x%02X, read 0x%02X" % (buf[x], rbuf[x])
 		cerr = cerr + 1
 		if (cerr == 10):
 			print "too many compare errors"
@@ -437,8 +539,11 @@ if cerr == 0:
 	print "compare OK!"
 print
 
+"""
+print "data written to ram: ",
 print buf[0:10]
+print "data read back:      ",
 print rbuf[0:10]
 print
-print buf[64:74]
-print rbuf[64:74]
+"""
+
