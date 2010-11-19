@@ -474,6 +474,8 @@ enum {
 	CMD_RAM_ADDR_GET	= 7,
 	CMD_RAM_WRITE		= 8,
 	CMD_RAM_READ		= 9,
+	CMD_SECRET_SQUIRREL	= 0xfc,
+	CMD_PROGRAM_SERIAL	= 0xfd,
 	CMD_BOOTLOADER		= 0xfe,
 	CMD_GET_VERSION		= 0xff
 };
@@ -482,7 +484,9 @@ enum {
 	ERR_OK				= 0,		// Operation completed successfully
 	ERR_HARDWARE_ERROR	= 1,		// Hardware error
 	ERR_INVALID_LEN		= 2,		// Packet length byte invalid
-	ERR_FPGA_NOT_CONF	= 3			// FPGA not configured
+	ERR_FPGA_NOT_CONF	= 3,		// FPGA not configured
+	ERR_BAD_MAGIC		= 4,		// Bad magic word
+	ERR_BAD_CHECKSUM	= 5			// Bad checksum
 };
 
 enum {
@@ -736,9 +740,44 @@ void ProcessIO(void)
 				counter = i+1;
 				break;
 
+			case CMD_PROGRAM_SERIAL:	// Program Serial Number
+				if ((OUTPacket[1] == 0xAC) && (OUTPacket[2] == 0xCE) &&
+					(OUTPacket[3] == 0x55) && (OUTPacket[4] == 0xED))
+				{
+					// Do a single-word program for the serial number block
+				} else {
+					// Magic number invalid. Bah!
+					INPacket[counter++] = ERR_BAD_MAGIC;
+				}																
+
+			case CMD_SECRET_SQUIRREL:	// Secret Squirrel Mode
+				// Also known as "ATE Self Test". This allows us to remotely poke and prod
+				// the I/Os without interference from the PMP and other peripherals. Core
+				// peripherals like the USB bus are exempt :)
+				// First turn the PMP off
+				PMCONHbits.PMPEN = 0;
+				// Set LATB, D and E
+				LATB = OUTPacket[1];
+				LATD = OUTPacket[2];
+				LATE = OUTPacket[3];
+				// Set TRISB, D and E
+				TRISB = OUTPacket[4];
+				TRISD = OUTPacket[5];
+				TRISE = OUTPacket[6];
+				// Settling delay
+				_asm nop _endasm;
+				_asm nop _endasm;
+				_asm nop _endasm;
+				_asm nop _endasm;
+				// Return port state to host
+				INPacket[counter++] = PORTB;
+				INPacket[counter++] = PORTD;
+				INPacket[counter++] = PORTE;
+				break;
+
 			case CMD_BOOTLOADER:	// Jump to bootloader
-				if ((OUTPacket[0] == 0xB0) && (OUTPacket[1] == 0x07) &&
-					(OUTPacket[2] == 0x10) && (OUTPacket[3] == 0xAD))
+				if ((OUTPacket[1] == 0xB0) && (OUTPacket[2] == 0x07) &&
+					(OUTPacket[3] == 0x10) && (OUTPacket[4] == 0xAD))
 				{
 					// Bootloader entry signature matches. Jump to the bootloader.
 					INTCONbits.GIE = 0;
