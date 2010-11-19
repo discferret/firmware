@@ -28,6 +28,9 @@ MFM_MASK_STOP_H			= 0x27
 MFM_CLKSEL				= 0x2F	# MFM clock select
 
 SCRATCHPAD				= 0x30
+INVERSE_SCRATCHPAD		= 0x31
+FIXED55					= 0x32
+FIXEDAA					= 0x33
 
 STEP_RATE				= 0xF0	# step rate, 250us per count
 STEP_CMD				= 0xFF	# step command, bit7=direction, rest=num steps
@@ -397,10 +400,24 @@ print "# FPGA <==> MCU COMMUNICATION TEST #"
 print "####################################"
 print
 
+aval = dev.peek(FIXED55)
+if (aval != 0x55):
+	print "ERROR: Read from Fixed55 returned 0x%02X, wanted 0x55" % aval
+	err = True
+else:
+	print "Read from Fixed55 passed."
+
+aval = dev.peek(FIXEDAA)
+if (aval != 0xAA):
+	print "ERROR: Read from FixedAA returned 0x%02X, wanted 0xAA" % aval
+	err = True
+else:
+	print "Read from FixedAA passed."
+
 for testval in [0x55, 0xaa, 0x00, 0xff, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0]:
 	dev.poke(SCRATCHPAD, testval)
 	pval = dev.peek(SCRATCHPAD)
-	ival = dev.peek(SCRATCHPAD+1)
+	ival = dev.peek(INVERSE_SCRATCHPAD)
 	if (pval != testval):
 		print "ERROR: Wrote 0x%02X to Scratchpad, got pval 0x%02X back." % (testval, pval)
 		err=True
