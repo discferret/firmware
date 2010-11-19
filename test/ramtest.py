@@ -31,6 +31,8 @@ SCRATCHPAD				= 0x30
 INVERSE_SCRATCHPAD		= 0x31
 FIXED55					= 0x32
 FIXEDAA					= 0x33
+CLOCK_TICKER			= 0x34
+CLOCK_TICKER_PLL		= 0x35
 
 STEP_RATE				= 0xF0	# step rate, 250us per count
 STEP_CMD				= 0xFF	# step command, bit7=direction, rest=num steps
@@ -400,6 +402,7 @@ print "# FPGA <==> MCU COMMUNICATION TEST #"
 print "####################################"
 print
 
+# --- Fixed 0x55/0xAA register test ---
 aval = dev.peek(FIXED55)
 if (aval != 0x55):
 	print "ERROR: Read from Fixed55 returned 0x%02X, wanted 0x55" % aval
@@ -413,7 +416,35 @@ if (aval != 0xAA):
 	err = True
 else:
 	print "Read from FixedAA passed."
+print
 
+# --- Clock ticker test ---
+aval = dev.peek(CLOCK_TICKER)
+bval = dev.peek(CLOCK_TICKER)
+if (aval == bval):
+	# if we get two values the same, try again
+	aval = dev.peek(CLOCK_TICKER)
+# two values the same, twice in a row. the clock isn't running.
+if (aval == bval):
+	print "ERROR: FPGA clock oscillator not running. Got values %d and %d." % (aval, bval)
+	err = True
+else:
+	print "FPGA oscillator running. Got values %d and %d." % (aval, bval)
+
+# --- Clock ticker test (PLL) ---
+aval = dev.peek(CLOCK_TICKER_PLL)
+bval = dev.peek(CLOCK_TICKER_PLL)
+if (aval == bval):
+	# if we get two values the same, try again
+	aval = dev.peek(CLOCK_TICKER_PLL)
+# two values the same, twice in a row. the clock isn't running.
+if (aval == bval):
+	print "ERROR: FPGA PLL not running. Got values %d and %d." % (aval, bval)
+	err = True
+else:
+	print "FPGA PLL running. Got values %d and %d." % (aval, bval)
+
+# --- Scratchpad test ---
 for testval in [0x55, 0xaa, 0x00, 0xff, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0]:
 	dev.poke(SCRATCHPAD, testval)
 	pval = dev.peek(SCRATCHPAD)
@@ -468,99 +499,101 @@ print "# STATIC RAM TEST #"
 print "###################"
 print
 
-# RAM length
-# TODO: run the RAM test for 512K, then if it fails, cycle back. This will
-# reveal the location of faulty address bits :)
-RAMLEN=1024*512
-# maximum address counter size
-MAXADDR=(1024*512)-1
+for RAMLEN in [512*1024, 256*1024, 128*1024, 64*1024, 32*1024, 16*1024, 8*1024, 4*1024, 2*1024, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2]:
+	# RAM length
+	# TODO: run the RAM test for 512K, then if it fails, cycle back. This will
+	# reveal the location of faulty address bits :)
+	#RAMLEN=1024*512
+	# maximum address counter size
+	MAXADDR=(1024*512)-1
 
-print "set addr to zero, resp: %d" % dev.setRAMAddr(0)
-ra = dev.getRAMAddr()
-if (ra != 0):
-	print "ERROR: RAM address was not zero after Set-to-Zero!"
-	sys.exit(-1)
-print
+	print "set addr to zero, resp: %d" % dev.setRAMAddr(0)
+	ra = dev.getRAMAddr()
+	if (ra != 0):
+		print "ERROR: RAM address was not zero after Set-to-Zero!"
+		sys.exit(-1)
+	print
 
-print "Generating %d bytes of randomness..." % RAMLEN,
-buf = []
-for x in range(RAMLEN):
-	buf.append(int(random.getrandbits(8)))
-print "done!"
-print
+	print "Generating %d bytes of randomness..." % RAMLEN,
+	buf = []
+	for x in range(RAMLEN):
+		buf.append(int(random.getrandbits(8)))
+	print "done!"
+	print
 
-print "Writing %d bytes of data to RAM..." % len(buf)
-i = len(buf)
-j = 0
-while i > 0:
-	if (i > 32):
-		dev.ramWrite(buf[j:j+32])
-		j = j + 32
-		i = i - 32
-	else:
-		dev.ramWrite(buf[j:j+i])
-		j = j + i
-		i = 0
+	print "Writing %d bytes of data to RAM..." % len(buf)
+	i = len(buf)
+	j = 0
+	while i > 0:
+		if (i > 32):
+			dev.ramWrite(buf[j:j+32])
+			j = j + 32
+			i = i - 32
+		else:
+			dev.ramWrite(buf[j:j+i])
+			j = j + i
+			i = 0
 
-ra = dev.getRAMAddr()
-print "RAM pointer = 0x%06X (%d)" % (ra, ra)
-if (ra != (RAMLEN & MAXADDR)):
-	print "ERROR! I wanted 0x%06X" % (RAMLEN & MAXADDR)
-	sys.exit(-1)
+	ra = dev.getRAMAddr()
+	print "RAM pointer = 0x%06X (%d)" % (ra, ra)
+	if (ra != (RAMLEN & MAXADDR)):
+		print "ERROR! I wanted 0x%06X" % (RAMLEN & MAXADDR)
+		sys.exit(-1)
 
-# TODO: check flags!
-dev.debug_dump_status()
+	# TODO: check flags!
+	dev.debug_dump_status()
 
-## read back test
-print
-print "Reading %d bytes of data from RAM..." % RAMLEN
-print "set addr to zero, resp: %d" % dev.setRAMAddr(0)
-ra = dev.getRAMAddr()
-if (ra != 0):
-	print "ERROR: RAM address was not zero after Set-to-Zero!"
-	sys.exit(-1)
-dev.debug_dump_status()
+	## read back test
+	print
+	print "Reading %d bytes of data from RAM..." % RAMLEN
+	print "set addr to zero, resp: %d" % dev.setRAMAddr(0)
+	ra = dev.getRAMAddr()
+	if (ra != 0):
+		print "ERROR: RAM address was not zero after Set-to-Zero!"
+		sys.exit(-1)
+	dev.debug_dump_status()
 
-i = RAMLEN
-rbuf = []
-while (i > 0):
-	if (i > 32):
-		x = dev.ramRead(32)
-		i = i - 32
-	else:
-		x = dev.ramRead(i)
-		i = 0
-	rbuf.extend(x)
-print "done."
+	i = RAMLEN
+	rbuf = []
+	while (i > 0):
+		if (i > 32):
+			x = dev.ramRead(32)
+			i = i - 32
+		else:
+			x = dev.ramRead(i)
+			i = 0
+		rbuf.extend(x)
+	print "done."
 
-ra = dev.getRAMAddr()
-print "RAM pointer = 0x%06X (%d)" % (ra, ra)
-if (ra != ((RAMLEN+1) & MAXADDR)):
-	print "ERROR! I wanted 0x%06X" % ((RAMLEN+1) & MAXADDR)
-	sys.exit(-1)
+	ra = dev.getRAMAddr()
+	print "RAM pointer = 0x%06X (%d)" % (ra, ra)
+	if (ra != ((RAMLEN+1) & MAXADDR)):
+		print "ERROR! I wanted 0x%06X" % ((RAMLEN+1) & MAXADDR)
+		sys.exit(-1)
 
-print "len buf:  %d" % len(buf)
-print "len rbuf: %d" % len(rbuf)
+	print "len buf:  %d" % len(buf)
+	print "len rbuf: %d" % len(rbuf)
 
-print "buffer compare..."
-cerr = 0
-for x in range(len(buf)):
-	if (rbuf[x] != buf[x]):
-		print "COMPARE ERROR at 0x%06X" % x
-		print "\tWrote 0x%02X, read 0x%02X" % (buf[x], rbuf[x])
-		cerr = cerr + 1
-		if (cerr == 10):
-			print "too many compare errors"
-			break
-if cerr == 0:
-	print "compare OK!"
-print
+	print "buffer compare..."
+	cerr = 0
+	for x in range(len(buf)):
+		if (rbuf[x] != buf[x]):
+			print "COMPARE ERROR at 0x%06X" % x
+			print "\tWrote 0x%02X, read 0x%02X" % (buf[x], rbuf[x])
+			cerr = cerr + 1
+			if (cerr == 10):
+				print "too many compare errors"
+				break
+	if cerr == 0:
+		print "compare OK! RAMLen = %d bytes" % RAMLEN
+		break
+	print
 
-"""
-print "data written to ram: ",
-print buf[0:10]
-print "data read back:      ",
-print rbuf[0:10]
-print
-"""
+	"""
+	print "data written to ram: ",
+	print buf[0:10]
+	print "data read back:      ",
+	print rbuf[0:10]
+	print
+	"""
 
