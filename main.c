@@ -474,6 +474,7 @@ enum {
 	CMD_RAM_ADDR_GET	= 7,
 	CMD_RAM_WRITE		= 8,
 	CMD_RAM_READ		= 9,
+	CMD_BOOTLOADER		= 0xfe,
 	CMD_GET_VERSION		= 0xff
 };
 
@@ -733,6 +734,16 @@ void ProcessIO(void)
 				// Success!
 				INPacket[0] = ERR_OK;
 				counter = i+1;
+				break;
+
+			case CMD_BOOTLOADER:	// Jump to bootloader
+				if ((OUTPacket[0] == 0xB0) && (OUTPacket[1] == 0x07) &&
+					(OUTPacket[2] == 0x10) && (OUTPacket[3] == 0xAD))
+				{
+					// Bootloader entry signature matches. Jump to the bootloader.
+					INTCONbits.GIE = 0;
+					_asm goto 0x001C _endasm;
+				}
 				break;
 
 			case CMD_GET_VERSION:	// Read hardware/firmware/microcode version info
