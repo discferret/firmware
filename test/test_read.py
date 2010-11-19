@@ -467,30 +467,12 @@ else:
 
 # HSTMD thresholds don't need to be set
 
-# set step rate to 6ms
-print "set step rate: resp %d" % dev.poke(STEP_RATE, 6000/250)
+# set step rate to 9ms
+print "set step rate: resp %d" % dev.poke(STEP_RATE, 9000/250)
 
 # select drive 0 (PC cable -- DS2=MOTEN iirc)
 print "select: resp %d" % dev.poke(DRIVE_CONTROL, DRIVE_CONTROL_DS0 | DRIVE_CONTROL_DS1 | DRIVE_CONTROL_DS2 | DRIVE_CONTROL_DS3 | DRIVE_CONTROL_MOTEN | DRIVE_CONTROL_SIDESEL)
 time.sleep(3)
-"""
-# seek to track zero
-print "seek to zero: resp %d" % dev.poke(STEP_CMD, STEP_CMD_TOWARDS_ZERO | (90 & STEP_COUNT_MASK))
-dev.debug_dump_status()
-stat = STATUS2_STEPPING
-while (stat & STATUS2_STEPPING) != 0:
-	stat = dev.peek(STATUS2)
-dev.debug_dump_status()
-time.sleep(1)
-
-# seek to track 10
-print "seek to 40: resp %d" % dev.poke(STEP_CMD, STEP_CMD_AWAYFROM_ZERO | (40 & STEP_COUNT_MASK))
-dev.debug_dump_status()
-stat = STATUS2_STEPPING
-while (stat & STATUS2_STEPPING) != 0:
-	stat = dev.peek(STATUS2)
-dev.debug_dump_status()
-time.sleep(1)
 
 # seek to track zero
 print "seek to zero: resp %d" % dev.poke(STEP_CMD, STEP_CMD_TOWARDS_ZERO | (90 & STEP_COUNT_MASK))
@@ -499,8 +481,26 @@ stat = STATUS2_STEPPING
 while (stat & STATUS2_STEPPING) != 0:
 	stat = dev.peek(STATUS2)
 dev.debug_dump_status()
+time.sleep(1)
 """
+# seek to desired track
+trk=40
+print "seek to %d: resp %d" % (trk, dev.poke(STEP_CMD, STEP_CMD_AWAYFROM_ZERO | (trk & STEP_COUNT_MASK)))
+dev.debug_dump_status()
+stat = STATUS2_STEPPING
+while (stat & STATUS2_STEPPING) != 0:
+	stat = dev.peek(STATUS2)
+dev.debug_dump_status()
+time.sleep(1)
 
+# seek to track zero
+print "seek to zero: resp %d" % dev.poke(STEP_CMD, STEP_CMD_TOWARDS_ZERO | (90 & STEP_COUNT_MASK))
+dev.debug_dump_status()
+stat = STATUS2_STEPPING
+while (stat & STATUS2_STEPPING) != 0:
+	stat = dev.peek(STATUS2)
+dev.debug_dump_status()
+"""
 # head settling time
 time.sleep(1)
 
