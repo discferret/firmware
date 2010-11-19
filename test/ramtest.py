@@ -2,7 +2,7 @@
 
 # DiscFerret ATE code, based on code by Julius Constante
 
-import sys, usb, struct, datetime, random, time
+import sys, usb, struct, datetime, random, time, math
 
 #############################################################################
 
@@ -589,11 +589,8 @@ for RAMLEN in [512*1024, 256*1024, 128*1024, 64*1024, 32*1024, 16*1024, 8*1024, 
 		break
 	print
 
-	"""
-	print "data written to ram: ",
-	print buf[0:10]
-	print "data read back:      ",
-	print rbuf[0:10]
-	print
-	"""
-
+if (RAMLEN < 512*1024):
+	print "RAM test failure: address line A%d" % (math.log(RAMLEN, 2))
+else:
+	print "RAM test successful."
+print
