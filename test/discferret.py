@@ -27,7 +27,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-import usb
+import usb, struct
 
 #############################################################################
 
@@ -132,12 +132,20 @@ CMD_RAM_ADDR_SET	= 6
 CMD_RAM_ADDR_GET	= 7
 CMD_RAM_WRITE		= 8
 CMD_RAM_READ		= 9
+CMD_RESET			= 0xFB
+CMD_SECRET_SQUIRREL	= 0xFC
+CMD_PROGRAM_SERIAL	= 0xFD
+CMD_BOOTLOADER		= 0xFE
 CMD_GET_VERSION		= 0xFF
 
-ERR_OK				= 0
-ERR_HARDWARE_ERROR	= 1
-ERR_INVALID_LEN		= 2
-ERR_FPGA_NOT_CONF	= 3
+ERR_OK					= 0
+ERR_HARDWARE_ERROR		= 1
+ERR_INVALID_LEN			= 2
+ERR_FPGA_NOT_CONF		= 3
+ERR_FPGA_REFUSED_CONF	= 4
+ERR_INVALID_PARAM		= 5
+
+#############################################################################
 
 #############################################################################
 
@@ -161,6 +169,14 @@ class DiscFerret:
 					for endpoint in self.intf.endpoints:
 						self.endpoints.append(endpoint)
 					return
+
+	# swap the bits in a byte
+	def __bitswap(self, num):
+		val = 0
+		for x in range(8):
+			b = num&(1<<x) != 0
+			val = val<<1 | b
+		return val
 
 	def open(self):
 		if self.handle:
@@ -232,6 +248,58 @@ class DiscFerret:
 		self.write(1, packet)
 		resp = self.read(0x81, 1)
 		return resp[0]
+
+	def fpgaLoadRBFData(self, rbfdata):
+		# Start by pushing the FPGA into LOAD mode
+		resp = self.fpgaLoadBegin()
+		if resp != ERR_OK:
+			return resp
+		# Poll FPGA status
+		resp = self.fpgaGetLoadStatus()
+		if resp != ERR_FPGA_NOT_CONF:
+			return ERR_FPGA_REFUSED_CONF
+		# Bitswap the RBF data, converting from binary string if necessary
+		rbf = list()
+		if type(rbfdata) is list:
+			for x in rbfdata:
+				rbf.append(self.__bitswap(x))
+		elif type(rbfdata) is str:
+			for x in range(len(rbfdata)):
+				rbf.append(self.__bitswap(struct.unpack('B', rbfdata[x])[0]))
+		else:
+			return ERR_INVALID_PARAM
+		# Send the RBF data to the DiscFerret
+		pos = 0
+		while pos < len(rbf):
+			# if we have more than 62 bytes to send, then send just the first 62
+			if (len(rbf) - pos) > 62:
+				i = 62
+			else:
+				i = len(rbf) - pos
+			# send the block
+			resp = self.fpgaLoadBlock(rbf[pos:pos+i])
+			if resp != ERR_OK:
+				return resp
+			# update pointer
+			pos += i
+		# Check that the load completed successfully
+		if (self.fpgaGetLoadStatus() != ERR_OK):
+			return ERR_FPGA_REFUSED_CONF
+		else:
+			return ERR_OK
+
+	def fpgaLoadRBFFile(self, filename):
+		try:
+			f = open("microcode.rbf", "rb")
+			rbfstr = f.read()
+			if len(rbfstr) < 1:
+				f.close()
+				return ERR_INVALID_PARAM
+			f.close()
+		except:
+			f.close()
+			return ERR_INVALID_PARAM
+		return self.fpgaLoadRBFData(rbfstr)
 
 	def peek(self, addr):
 		self.write(1, [CMD_FPGA_PEEK, ((addr >> 8) & 0xff), addr & 0xff])
@@ -320,4 +388,25 @@ class DiscFerret:
 		if s[-1] == ',':
 			s = s[:-1]
 		print "STATUS: %02X %02X [%s]" % (a,b,s)
+
+	### Secret Squirrel Mode
+	# Writes values to LAT{B,D,E} and TRIS{B,D,E}, then returns the state of PORT{B,D,E}
+	# Used for ATE testing
+	def secretSquirrel(self, latch, tris):
+		packet = [CMD_SECRET_SQUIRREL, latch[0], latch[1], latch[2], tris[0], tris[1], tris[2]]
+		self.write(1, packet)
+		resp = self.read(0x81, 3)
+		return resp
+
+	### Enter bootloader
+	def enterBootloader(self):
+		packet = [CMD_BOOTLOADER, 0xB0, 0x07, 0x10, 0xAD]
+		self.write(1, packet)
+		return ERR_OK
+
+	### Reset the DiscFerret
+	def resetDevice(self):
+		packet = [CMD_RESET, 0xDE, 0xAD, 0xBE, 0xEF]
+		self.write(1, packet)
+		return ERR_OK
 

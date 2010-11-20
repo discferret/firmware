@@ -1,6 +1,8 @@
 #! /usr/bin/env python
 
-# DiscFerret ATE code, based on code by Julius Constante
+#############################################################################
+# DiscFerret disc write test
+#############################################################################
 
 import sys, usb, struct, datetime, random, time
 from discferret import *

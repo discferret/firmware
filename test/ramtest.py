@@ -30,6 +30,108 @@ if not dev.open():
 else:
 	print "Device opened successfully"
 
+#############################################################################
+
+err=False
+print
+print "###################################"
+print "# SECRET SQUIRREL MODE COMMS TEST #"
+print "###################################"
+print
+
+# Start by kicking the FPGA into Load mode. This forces it to tristate all
+# its I/O pins. We want to do short-and-open testing, so we most definitely
+# do NOT want the FPGA interfering.
+# This would be so much easier if the PIC spoke JTAG..... then we could put
+# it and the FPGA on a JTAG chain and do proper boundary scan testing. For
+# now, this will have to do.
+dev.fpgaLoadBegin()
+
+# We have several different mask triads -- these are for PORTB, D, and E in
+# sequence, and determine which port pins are tested. The tristate masks are
+# generated auto-magically :3
+
+"""
+	 * PORTB
+	 *   5: PMALL	--> Parallel Master Port Address Load Low
+	 *   4: PMALH	--> Parallel Master Port Address Load High
+	 *
+	 * PORTD
+	 *   7: PMD7	}
+	 *   6: PMD6	}
+	 *   5: PMD5	}
+	 *   4: PMD4	}	Parallel Master Port
+	 *   3: PMD3	}	Data Bus
+	 *   2: PMD2	}
+	 *   1: PMD1	}
+	 *   0: PMD0	}
+	 *
+	 * PORTE
+	 *   1: PMWR	--> Parallel Master Port Write
+	 *   0: PMRD	--> Parallel Master Port Read
+"""
+triads = [
+		[0b00100000, 0b00000000, 0b00000000, "PMALL"],		# PMALL
+		[0b00010000, 0b00000000, 0b00000000, "PMALH"],		# PMALH
+		[0b00000000, 0b10000000, 0b00000000, "PMD7"],		# PMD7
+		[0b00000000, 0b01000000, 0b00000000, "PMD6"],		# PMD6
+		[0b00000000, 0b00100000, 0b00000000, "PMD5"],		# PMD5
+		[0b00000000, 0b00010000, 0b00000000, "PMD4"],		# PMD4
+		[0b00000000, 0b00001000, 0b00000000, "PMD3"],		# PMD3
+		[0b00000000, 0b00000100, 0b00000000, "PMD2"],		# PMD2
+		[0b00000000, 0b00000010, 0b00000000, "PMD1"],		# PMD1
+		[0b00000000, 0b00000001, 0b00000000, "PMD0"],		# PMD0
+		[0b00000000, 0b00000000, 0b00000010, "PMWR"],		# PMWR
+		[0b00000000, 0b00000000, 0b00000001, "PMRD"]		# PMRD
+		]
+
+# Build the Available I/O mask
+mask = [0,0,0]
+for t in triads:
+	for i in range(3):
+		mask[i] |= t[i]
+
+for t in triads:
+	# calculate tristate bits
+	tris = [~t[0], ~t[1], ~t[2]]
+	hot = t
+	cold = [0,0,0]
+
+	# Run tests with the bit set and cleared
+	hresp = dev.secretSquirrel(tris, hot)
+	cresp = dev.secretSquirrel(tris, cold)
+
+	# When bit is set, nothing should be pulling it down
+	if (((hresp[0] & t[0]) != t[0]) or
+		((hresp[1] & t[1]) != t[1]) or
+		((hresp[2] & t[2]) != t[2])):
+		# ... but something is!
+		print "Triad ", t[3], " stuck low"
+		print "Triad: ", t, "\nColdR: ", cresp, "\nHotRs: ", hresp
+
+	# When bit is clear, no other bits should be clear (ideally!)
+	if (((cresp[0] & mask[0]) != (mask[0] & ~t[0])) or
+		((cresp[1] & mask[1]) != (mask[1] & ~t[1])) or
+		((cresp[2] & mask[2]) != (mask[2] & ~t[2]))):
+		print "Triad ", t[3], " shorted to other I/Os!"
+		print "Triad: ", t, "\nColdR: ", cresp, "\nHotRs: ", hresp
+
+print
+
+# We're done. Reset the Ferret.
+print "Test complete. Resetting DiscFerret."
+dev.resetDevice()
+time.sleep(2)
+if not dev.open():
+	print "Could not open device, is it connected?"
+	sys.exit(-1)
+else:
+	print "Device opened successfully"
+
+sys.exit(-1)
+
+#############################################################################
+
 if LoadFPGA:
 	print "Initialising FPGA...",
 	# FPGA LOAD INIT -- start a microcode load
@@ -87,6 +189,8 @@ if LoadFPGA:
 
 	print "Load complete.",
 
+#############################################################################
+
 print "FPGA status:",
 # poll fpga status
 resp = dev.fpgaGetLoadStatus()
@@ -102,7 +206,7 @@ else:
 print "DEVICE INFORMATION:"
 print dev.getDeviceInfo()
 
-#############################################################################
+
 
 err=False
 print
