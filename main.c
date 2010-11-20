@@ -474,6 +474,7 @@ enum {
 	CMD_RAM_ADDR_GET	= 7,
 	CMD_RAM_WRITE		= 8,
 	CMD_RAM_READ		= 9,
+	CMD_RESET			= 0xfb,
 	CMD_SECRET_SQUIRREL	= 0xfc,
 	CMD_PROGRAM_SERIAL	= 0xfd,
 	CMD_BOOTLOADER		= 0xfe,
@@ -740,11 +741,11 @@ void ProcessIO(void)
 				counter = i+1;
 				break;
 
-			case CMD_PROGRAM_SERIAL:	// Program Serial Number
-				if ((OUTPacket[1] == 0xAC) && (OUTPacket[2] == 0xCE) &&
-					(OUTPacket[3] == 0x55) && (OUTPacket[4] == 0xED))
+			case CMD_RESET:				// Hard Reset
+				if ((OUTPacket[1] == 0xDE) && (OUTPacket[2] == 0xAD) &&
+					(OUTPacket[3] == 0xBE) && (OUTPacket[4] == 0xEF))
 				{
-					// Do a single-word program for the serial number block
+					_asm reset _endasm;
 				} else {
 					// Magic number invalid. Bah!
 					INPacket[counter++] = ERR_BAD_MAGIC;
@@ -774,6 +775,16 @@ void ProcessIO(void)
 				INPacket[counter++] = PORTD;
 				INPacket[counter++] = PORTE;
 				break;
+
+			case CMD_PROGRAM_SERIAL:	// Program Serial Number
+				if ((OUTPacket[1] == 0xAC) && (OUTPacket[2] == 0xCE) &&
+					(OUTPacket[3] == 0x55) && (OUTPacket[4] == 0xED))
+				{
+					// Do a single-word program for the serial number block
+				} else {
+					// Magic number invalid. Bah!
+					INPacket[counter++] = ERR_BAD_MAGIC;
+				}																
 
 			case CMD_BOOTLOADER:	// Jump to bootloader
 				if ((OUTPacket[1] == 0xB0) && (OUTPacket[2] == 0x07) &&
