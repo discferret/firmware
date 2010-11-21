@@ -558,6 +558,28 @@ unsigned char PMP_READ(void)
 	return PMDIN1L;
 }
 
+void LongDelay(void)
+{
+	unsigned char i;
+	//A basic for() loop decrementing a 16 bit number would be simpler, but seems to take more code space for
+	//a given delay.  So do this instead:	
+	for(i = 0; i < 0xFF; i++)
+	{
+		WREG = 0xFF;
+		while(WREG)
+		{
+			WREG--;
+			_asm
+			bra	0	//Equivalent to bra $+2, which takes half as much code as 2 nop instructions
+			bra	0	//Equivalent to bra $+2, which takes half as much code as 2 nop instructions
+			clrwdt
+			nop
+			_endasm	
+		}
+	}
+	//Delay is ~59.8ms at 48MHz.	
+}
+
 /******************************************************************************
  * Function:        void ProcessIO(void)
  *
@@ -746,7 +768,12 @@ void ProcessIO(void)
 				if ((OUTPacket[1] == 0xDE) && (OUTPacket[2] == 0xAD) &&
 					(OUTPacket[3] == 0xBE) && (OUTPacket[4] == 0xEF))
 				{
-					_asm reset _endasm;
+					UCONbits.SUSPND = 0;		//Disable USB module
+					UCON = 0x00;				//Disable USB module
+					//And wait awhile for the USB cable capacitance to discharge down to disconnected (SE0) state. 
+					//Otherwise host might not realize we disconnected/reconnected when we do the reset.
+					LongDelay();
+					Reset();
 				} else {
 					// Magic number invalid. Bah!
 					INPacket[counter++] = ERR_BAD_MAGIC;
