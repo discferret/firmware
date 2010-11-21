@@ -290,7 +290,7 @@ class DiscFerret:
 
 	def fpgaLoadRBFFile(self, filename):
 		try:
-			f = open("microcode.rbf", "rb")
+			f = open(filename, "rb")
 			rbfstr = f.read()
 			if len(rbfstr) < 1:
 				f.close()
