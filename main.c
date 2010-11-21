@@ -578,6 +578,7 @@ void ProcessIO(void)
 {
 	unsigned int counter = 0;
 	unsigned int i, j;
+	unsigned long shifter;
 	static char ramread_discard_first = 1;
 
     //User Application USB tasks below.
@@ -756,24 +757,82 @@ void ProcessIO(void)
 				// the I/Os without interference from the PMP and other peripherals. Core
 				// peripherals like the USB bus are exempt :)
 				// First turn the PMP off
-				PMCONHbits.PMPEN = 0;
-				// Set LATB, D and E
-				LATB = OUTPacket[1];
-				LATD = OUTPacket[2];
-				LATE = OUTPacket[3];
-				// Set TRISB, D and E
-				TRISB = OUTPacket[4];
-				TRISD = OUTPacket[5];
-				TRISE = OUTPacket[6];
-				// Settling delay
-				_asm nop _endasm;
-				_asm nop _endasm;
-				_asm nop _endasm;
-				_asm nop _endasm;
-				// Return port state to host
-				INPacket[counter++] = PORTB;
-				INPacket[counter++] = PORTD;
-				INPacket[counter++] = PORTE;
+				PMCONH = 0;
+				PMCONL = 0;
+				PMMODEH = 0;
+				PMMODEL = 0;
+				PMEH = 0;
+				PMEL = 0;
+				PMSTATH = 0;
+				PMSTATL = 0;
+				// Set port latches
+				LATD = OUTPacket[1];
+				LATB = (OUTPacket[2] & 0x03) << 4;
+				LATE = 0x00;
+				// Set TRIS bits
+				TRISD = 0x00;
+				TRISB = 0x00;
+				TRISE = 0x01;	// RE0 used as data input, RE1 as clock
+				i = 0;
+				shifter = 0;
+				do {
+					// clock high
+					LATEbits.LATE1 = 1;
+					_asm nop _endasm;
+					_asm nop _endasm;
+					_asm nop _endasm;
+					_asm nop _endasm;
+					// clock low
+					LATEbits.LATE1 = 0;
+					// get data state
+					_asm nop _endasm;
+					_asm nop _endasm;
+					_asm nop _endasm;
+					_asm nop _endasm;
+					if (PORTEbits.RE0) {
+						shifter = (shifter << 1L) + 1;
+					} else {
+						shifter = (shifter << 1L);
+					}
+					i++;
+					// break if we've clocked more than 4 times the buffer length
+					if (i > 128) break;
+				// need to shift in at least 20 bits, then see the shift marker
+				} while (((shifter & 0x1FFFFFL) != 0x000001L) || (i < 20));
+
+				// did we find the sync marker?
+				if ((shifter & 0x1FFFFFL) != 0x000001L) {
+					// no, hardware error :(
+					INPacket[counter++] = ERR_HARDWARE_ERROR;
+					break;
+				}
+
+				// sync mark found. get data bits.
+				shifter = 0;
+				for (i=0; i<10; i++) {
+					// clock high
+					LATEbits.LATE1 = 1;
+					_asm nop _endasm;
+					_asm nop _endasm;
+					_asm nop _endasm;
+					_asm nop _endasm;
+					// clock low
+					LATEbits.LATE1 = 0;
+					// get data state
+					_asm nop _endasm;
+					_asm nop _endasm;
+					_asm nop _endasm;
+					_asm nop _endasm;
+					if (PORTEbits.RE0) {
+						shifter = (shifter << 1L) + 1;
+					} else {
+						shifter = (shifter << 1L);
+					}
+				}
+				// return data
+				INPacket[counter++] = ERR_OK;
+				INPacket[counter++] = (shifter >> 8) & 0xFF;
+				INPacket[counter++] = shifter & 0xff;
 				break;
 
 			case CMD_PROGRAM_SERIAL:	// Program Serial Number
