@@ -61,7 +61,7 @@ for i in range(0x400):
 	resp = dev.secretSquirrel(i)
 	if (resp == None):
 		err = True
-		print "Hardware error, pass 0x%03X: Secret Squirrel can't hear the FPGA!"
+		print "Hardware error, pass 0x%03X: Secret Squirrel can't hear the FPGA!" % i
 		break
 	elif (resp != i):
 		err = True
