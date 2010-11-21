@@ -32,19 +32,19 @@ else:
 
 #############################################################################
 
-err=False
+err = False
 print
-print "###################################"
-print "# SECRET SQUIRREL MODE COMMS TEST #"
-print "###################################"
+print "######################"
+print "# FPGA LOOPBACK TEST #"
+print "######################"
 print
 
 # Load SioATE
 print "Loading SioATE..."
-#print "FPGA load: status code %d" % dev.fpgaLoadRBFFile("SioATE.rbf")
-# poll fpga status
-#resp = dev.fpgaGetLoadStatus()
-resp = ERR_OK
+print "FPGA load: status code %d" % dev.fpgaLoadRBFFile("SioATE.rbf")
+
+# Poll FPGA status
+resp = dev.fpgaGetLoadStatus()
 if resp == ERR_FPGA_NOT_CONF:
 	print "FPGA is waiting for microcode load.. LOAD FAILED!"
 	sys.exit(-1)
@@ -54,12 +54,26 @@ else:
 	print "FPGA status code unknown, is %d, wanted %d or %d" % (resp, ERR_OK, ERR_FPGA_NOT_CONF)
 	sys.exit(-1)
 
-
 # Now do some SSQ requests
-for i in [0x155, 0x3ff]:
-	print "0x%X: " % i, dev.secretSquirrel(i)
+print "Sending SSQ requests..."
+for i in range(0x400):
+	# Send the SSQ request
+	resp = dev.secretSquirrel(i)
+	if (resp == None):
+		err = True
+		print "Hardware error, pass 0x%03X: Secret Squirrel can't hear the FPGA!"
+		break
+	elif (resp != i):
+		err = True
+		print "Error: wanted 0x%03X, got 0x%03X" % (i, dev.secretSquirrel(i))
+		break
 
-sys.exit(-1)
+if err:
+	print "Errors occurred, aborting test sequence."
+	sys.exit(-1)
+else:
+	print "All tests passed."
+	print
 
 """
 # Start by kicking the FPGA into Load mode. This forces it to tristate all
