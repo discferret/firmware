@@ -390,13 +390,17 @@ class DiscFerret:
 		print "STATUS: %02X %02X [%s]" % (a,b,s)
 
 	### Secret Squirrel Mode
-	# Writes values to LAT{B,D,E} and TRIS{B,D,E}, then returns the state of PORT{B,D,E}
 	# Used for ATE testing
-	def secretSquirrel(self, latch, tris):
-		packet = [CMD_SECRET_SQUIRREL, latch[0], latch[1], latch[2], tris[0], tris[1], tris[2]]
+	def secretSquirrel(self, value):
+		packet = [CMD_SECRET_SQUIRREL, value & 0xff, (value >> 8) & 0x03]
 		self.write(1, packet)
-		resp = self.read(0x81, 3)
-		return resp
+		resp = self.read(0x81, 32)
+		if resp[0] != ERR_OK:
+			print "Secret Squirrel returned Error Code %d!" % resp[0]
+			print resp
+			return None
+		else:
+			return resp
 
 	### Enter bootloader
 	def enterBootloader(self):

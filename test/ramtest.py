@@ -39,6 +39,29 @@ print "# SECRET SQUIRREL MODE COMMS TEST #"
 print "###################################"
 print
 
+# Load SioATE
+print "Loading SioATE..."
+#print "FPGA load: status code %d" % dev.fpgaLoadRBFFile("SioATE.rbf")
+# poll fpga status
+#resp = dev.fpgaGetLoadStatus()
+resp = ERR_OK
+if resp == ERR_FPGA_NOT_CONF:
+	print "FPGA is waiting for microcode load.. LOAD FAILED!"
+	sys.exit(-1)
+elif resp == ERR_OK:
+	print "FPGA microcode is active.. LOAD SUCCEEDED!"
+else:
+	print "FPGA status code unknown, is %d, wanted %d or %d" % (resp, ERR_OK, ERR_FPGA_NOT_CONF)
+	sys.exit(-1)
+
+
+# Now do some SSQ requests
+for i in [0x155, 0x3ff]:
+	print "0x%X: " % i, dev.secretSquirrel(i)
+
+sys.exit(-1)
+
+"""
 # Start by kicking the FPGA into Load mode. This forces it to tristate all
 # its I/O pins. We want to do short-and-open testing, so we most definitely
 # do NOT want the FPGA interfering.
@@ -50,7 +73,7 @@ dev.fpgaLoadBegin()
 # We have several different mask triads -- these are for PORTB, D, and E in
 # sequence, and determine which port pins are tested. The tristate masks are
 # generated auto-magically :3
-
+"""
 """
 	 * PORTB
 	 *   5: PMALL	--> Parallel Master Port Address Load Low
@@ -69,7 +92,7 @@ dev.fpgaLoadBegin()
 	 * PORTE
 	 *   1: PMWR	--> Parallel Master Port Write
 	 *   0: PMRD	--> Parallel Master Port Read
-"""
+""""""
 triads = [
 		[0b00100000, 0b00000000, 0b00000000, "PMALL"],		# PMALL
 		[0b00010000, 0b00000000, 0b00000000, "PMALH"],		# PMALH
@@ -108,6 +131,7 @@ for t in triads:
 		# ... but something is!
 		print "Triad ", t[3], " stuck low"
 		print "Triad: ", t, "\nColdR: ", cresp, "\nHotRs: ", hresp
+		print "Triad: ", t, "\nColdP: ", cold, "\nHotPl: ", hot
 
 	# When bit is clear, no other bits should be clear (ideally!)
 	if (((cresp[0] & mask[0]) != (mask[0] & ~t[0])) or
@@ -117,18 +141,19 @@ for t in triads:
 		print "Triad: ", t, "\nColdR: ", cresp, "\nHotRs: ", hresp
 
 print
-
+"""
 # We're done. Reset the Ferret.
 print "Test complete. Resetting DiscFerret."
 dev.resetDevice()
-time.sleep(2)
+dev = None
+print "Waiting for re-enumeration..."
+time.sleep(5)
+dev = DiscFerret()
 if not dev.open():
 	print "Could not open device, is it connected?"
 	sys.exit(-1)
 else:
 	print "Device opened successfully"
-
-sys.exit(-1)
 
 #############################################################################
 
