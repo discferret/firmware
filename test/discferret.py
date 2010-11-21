@@ -395,10 +395,13 @@ class DiscFerret:
 		packet = [CMD_SECRET_SQUIRREL, value & 0xff, (value >> 8) & 0x03]
 		self.write(1, packet)
 		resp = self.read(0x81, 32)
-		if resp[0] != ERR_OK:
+		try:
+			if resp[0] != ERR_OK:
+				return None
+			else:
+				return (resp[1] << 8) + resp[2]
+		except:
 			return None
-		else:
-			return (resp[1] << 8) + resp[2]
 
 	### Enter bootloader
 	def enterBootloader(self):
