@@ -396,11 +396,9 @@ class DiscFerret:
 		self.write(1, packet)
 		resp = self.read(0x81, 32)
 		if resp[0] != ERR_OK:
-			print "Secret Squirrel returned Error Code %d!" % resp[0]
-			print resp
 			return None
 		else:
-			return resp
+			return (resp[1] << 8) + resp[2]
 
 	### Enter bootloader
 	def enterBootloader(self):
