@@ -65,7 +65,7 @@ for i in range(0x400):
 		break
 	elif (resp != i):
 		err = True
-		print "Error: wanted 0x%03X, got 0x%03X" % (i, dev.secretSquirrel(i))
+		print "Error: wanted 0x%03X, got 0x%03X" % (i, resp)
 		break
 
 if err:
@@ -74,6 +74,9 @@ if err:
 else:
 	print "All tests passed."
 	print
+
+# wait time for LED blink
+time.sleep(5)
 
 """
 # Start by kicking the FPGA into Load mode. This forces it to tristate all
