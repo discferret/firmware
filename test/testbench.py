@@ -39,37 +39,59 @@ print "# FPGA LOOPBACK TEST #"
 print "######################"
 print
 
-# Load SioATE
-print "Loading SioATE..."
-print "FPGA load: status code %d" % dev.fpgaLoadRBFFile("SioATE.rbf")
-
-# Poll FPGA status
-resp = dev.fpgaGetLoadStatus()
-if resp == ERR_FPGA_NOT_CONF:
-	print "FPGA is waiting for microcode load.. LOAD FAILED!"
-	sys.exit(-1)
-elif resp == ERR_OK:
-	print "FPGA microcode is active.. LOAD SUCCEEDED!"
-else:
-	print "FPGA status code unknown, is %d, wanted %d or %d" % (resp, ERR_OK, ERR_FPGA_NOT_CONF)
-	sys.exit(-1)
-
-# Now do some SSQ requests
-print "Sending SSQ requests..."
-for i in range(0x400):
-	# Send the SSQ request
-	resp = dev.secretSquirrel(i)
-	if (resp == None):
+for mode in range(2):
+	if mode == 0:
+		rbffile = "SioATE_pin2sio.rbf"
+	elif mode == 1:
+		rbffile = "SioATE_sio2pin.rbf"
+	else:
+		print "Hmm, invalid mode! M=%d" % mode
 		err = True
-		print "Hardware error, pass 0x%03X: Secret Squirrel can't hear the FPGA!" % i
 		break
-	elif (resp != i):
+
+	# Load SioATE
+	print "Loading %s..." % rbffile
+	resp = dev.fpgaLoadRBFFile(rbffile)
+	print "FPGA load: status code %d" % resp
+	if (resp != ERR_OK):
+		print "Error loading FPGA microcode. Check FCNSTAT, FCNCONF, FCDONE, FCDCLK and FCDATA0."
 		err = True
-		print "Error: wanted 0x%03X, got 0x%03X" % (i, resp)
 		break
+
+	# Poll FPGA status
+	resp = dev.fpgaGetLoadStatus()
+	if resp == ERR_FPGA_NOT_CONF:
+		print "FPGA is waiting for microcode load.. LOAD FAILED!"
+		err = True
+		break
+	elif resp == ERR_OK:
+		print "FPGA microcode is active.. LOAD SUCCEEDED!"
+	else:
+		print "FPGA status code unknown, is %d, wanted %d or %d" % (resp, ERR_OK, ERR_FPGA_NOT_CONF)
+		err = True
+		break
+
+	# Now do some SSQ requests
+	print "Sending SSQ requests..."
+	for i in range(0x400):
+		# Send the SSQ request
+		resp = dev.secretSquirrel(i, mode)
+		if (resp == None):
+			err = True
+			print "Hardware error, mode %d, value 0x%03X: Secret Squirrel can't hear the FPGA!" % (mode, i)
+			break
+		elif (resp != i):
+			err = True
+			print "Error: mode %d, wanted 0x%03X, got 0x%03X" % (mode, i, resp)
+			break
+	if not err:
+		print "Loopback test succeeded, pass %d of 2" % (mode + 1)
+
+print
 
 if err:
 	print "Errors occurred, aborting test sequence."
+	print
 	sys.exit(-1)
 else:
 	print "All tests passed."

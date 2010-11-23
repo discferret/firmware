@@ -827,9 +827,9 @@ void ProcessIO(void)
 						_asm nop _endasm;
 						_asm nop _endasm;
 						if (PORTEbits.RE0) {
-							shifter = (shifter << 1L) + 1;
+							shifter = (shifter << 1UL) + 1UL;
 						} else {
-							shifter = (shifter << 1L);
+							shifter = (shifter << 1UL);
 						}
 						i++;
 						// break if we've clocked more than 4 times the buffer length
@@ -877,13 +877,14 @@ void ProcessIO(void)
 					TRISD = 0xFF;
 					TRISB = 0x03;
 					TRISE = 0x00;	// RE0 used as data output, RE1 as clock
-					shifter = ((OUTPacket[3] & 0x03) << 4) | OUTPacket[2];
+					shifter = (((unsigned long)OUTPacket[3] & 0x03) << 8) + ((unsigned long)OUTPacket[2]);
 					for (i=0; i<10; i++) {
 						if (shifter & 1) {
 							LATEbits.LATE0 = 1;
 						} else {
 							LATEbits.LATE0 = 0;
 						}
+						shifter >>= 1;
 						// clock high
 						_asm nop _endasm;
 						_asm nop _endasm;
@@ -898,9 +899,17 @@ void ProcessIO(void)
 						LATEbits.LATE1 = 0;
 					}	
 					// return data
+					_asm nop _endasm;
+					_asm nop _endasm;
+					_asm nop _endasm;
+					_asm nop _endasm;
+					_asm nop _endasm;
+					_asm nop _endasm;
+					_asm nop _endasm;
+					_asm nop _endasm;
 					INPacket[counter++] = ERR_OK;
 					INPacket[counter++] = PORTD;
-					INPacket[counter++] = PORTB & 0x03;
+					INPacket[counter++] = (PORTB >> 4) & 0x03;
 				}
 				break;
 
