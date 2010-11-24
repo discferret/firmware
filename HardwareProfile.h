@@ -215,8 +215,10 @@
 
 
     /** Configuration options *****************************************/
+	// Define this to use 16-bit SPP addressing
+//	#define PMP_ADDR_16BIT
 	// Define this to slow down the Parallel Master Port
-	//#define PMP_SLOW
+//	#define PMP_SLOW
 
 
 #endif  //HARDWARE_PROFILE_H
