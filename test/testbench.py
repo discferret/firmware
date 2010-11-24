@@ -203,7 +203,7 @@ print "FPGA load: status code %d" % resp
 if (resp != ERR_OK):
 	print "Error loading FPGA microcode. Check FCNSTAT, FCNCONF, FCDONE, FCDCLK and FCDATA0."
 	err = True
-	break
+	sys.exit(-1)
 
 # Poll FPGA status
 resp = dev.fpgaGetLoadStatus()
@@ -335,9 +335,52 @@ else:
 
 err = False
 print
-print "###################"
-print "# STATIC RAM TEST #"
-print "###################"
+print "###################################"
+print "# STATIC RAM TEST 1: WRITE SINGLE #"
+print "###################################"
+print
+
+for byte in [0x00, 0x55, 0xaa, 0xff, 0xde, 0xad, 0xbe, 0xef]:
+	# set address to 0
+	dev.setRAMAddr(0)
+	ra = dev.getRAMAddr()
+	if (ra != 0):
+		print "ERROR: RAM address was not zero after Set-to-Zero!"
+		sys.exit(-1)
+
+	# write data byte
+	dev.ramWrite([byte])
+
+	# addr back to 0 again
+	dev.setRAMAddr(0)
+	ra = dev.getRAMAddr()
+	if (ra != 0):
+		print "ERROR: RAM address was not zero after Set-to-Zero!"
+		sys.exit(-1)
+
+	# read byte from RAM
+	x = dev.ramRead(1)
+
+	if x[0] != byte:
+		print "Mismatch: wanted 0x%02X, got %02X, error-mask %02X" % (byte, x[0], byte ^ x[0])
+		err = True
+# frankly it's more useful to see *all* the errors -- find out if the error has a pattern
+#		break
+
+if err:
+	print "Error occurred, aborting test sequence."
+	sys.exit(-1)
+else:
+	print "All tests passed."
+	print
+
+#############################################################################
+
+err = False
+print
+print "##################################"
+print "# STATIC RAM TEST 2: WRITE BLOCK #"
+print "##################################"
 print
 
 for RAMLEN in [512*1024, 256*1024, 128*1024, 64*1024, 32*1024, 16*1024, 8*1024, 4*1024, 2*1024, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2]:
