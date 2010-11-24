@@ -17,11 +17,6 @@ def bitswap(num):
 
 #############################################################################
 
-# Set to False to disable FPGA microcode loading (use when debugging over JTAG)
-LoadFPGA = True
-
-#############################################################################
-
 # open the discferret
 dev = DiscFerret()
 if not dev.open():
@@ -202,21 +197,25 @@ else:
 
 #############################################################################
 
-if LoadFPGA:
-	print "Initialising FPGA...",
-	print "FPGA load: status code %d" % dev.fpgaLoadRBFFile("microcode.rbf")
+print "Loading microcode.rbf..."
+resp = dev.fpgaLoadRBFFile("microcode.rbf")
+print "FPGA load: status code %d" % resp
+if (resp != ERR_OK):
+	print "Error loading FPGA microcode. Check FCNSTAT, FCNCONF, FCDONE, FCDCLK and FCDATA0."
+	err = True
+	break
 
-	# Poll FPGA status
-	resp = dev.fpgaGetLoadStatus()
-	if resp == ERR_FPGA_NOT_CONF:
-		print "FPGA is waiting for microcode load.. LOAD FAILED!"
-		sys.exit(-1)
-	elif resp == ERR_OK:
-		print "FPGA microcode is active.. LOAD SUCCEEDED!"
-	else:
-		print "FPGA status code unknown, is %d, wanted %d or %d" % (resp, ERR_OK, ERR_FPGA_NOT_CONF)
-		sys.exit(-1)
-	print "Load complete.",
+# Poll FPGA status
+resp = dev.fpgaGetLoadStatus()
+if resp == ERR_FPGA_NOT_CONF:
+	print "FPGA is waiting for microcode load.. LOAD FAILED!"
+	sys.exit(-1)
+elif resp == ERR_OK:
+	print "FPGA microcode is active.. LOAD SUCCEEDED!"
+else:
+	print "FPGA status code unknown, is %d, wanted %d or %d" % (resp, ERR_OK, ERR_FPGA_NOT_CONF)
+	sys.exit(-1)
+print "Load complete.",
 
 #############################################################################
 
