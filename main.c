@@ -386,6 +386,11 @@ void UserInit(void)
 	PIN_FCNCONF = 1;
 
 	// Set up ports
+	// Disable analog input on AN7 (RF2) to allow USB bus sensing
+	WDTCONbits.ADSHR = 1;
+	ANCON0bits.PCFG7 = 1;	// PCFG7 => AN7 => PORTF.2 (RF2)
+	WDTCONbits.ADSHR = 0;
+
 	// PORTA: All open-circuit; set as output driving low
 	TRISA = 0b00000000;
 	// PORTB: ICSP on {7,6} O/P, PMP address load on {5,4}, rest n/c

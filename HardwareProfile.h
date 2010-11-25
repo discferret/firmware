@@ -77,13 +77,13 @@
 	// Defined if the USB device is capable of sensing the state of the bus,
 	// i.e. Connected or Disconnected. That is, can the device detect whether
 	// VBUS = 5V?
-//    #define USE_USB_BUS_SENSE_IO
+    #define USE_USB_BUS_SENSE_IO
 	// Also set the I/O pin in use here (note that if USE_USB_BUS_SENSE_IO is
 	// disabled, self_power will automagically get set to 1 and the I/O pin
 	// will be ignored...)
-    #define tris_usb_bus_sense  TRISBbits.TRISB5    // Input
+    #define tris_usb_bus_sense  TRISFbits.TRISF2    // Input
     #if defined(USE_USB_BUS_SENSE_IO)
-    #define USB_BUS_SENSE       PORTBbits.RB5
+    #define USB_BUS_SENSE       PORTFbits.RF2
     #else
     #define USB_BUS_SENSE       1
     #endif
