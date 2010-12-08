@@ -115,5 +115,55 @@ while kbhit():
 	getch()
 
 print
+
+#################
+# HSIO walk test
+print
+print "HSIO walk test"
+print "=============="
+# all HSIOs to output mode
+dev.poke(HSIO_DIR, 0)
+ok = True
+while ok:
+	for i in [1,2,4,8]:
+		dev.poke(HSIO_PIN, ~i)
+		time.sleep(1)
+		if kbhit():
+			ok = False
+			break
+
+# turn the lamps off
+dev.poke(HSIO_PIN, 0)
+dev.poke(HSIO_DIR, 0x0f)
+
+# flush keyboard buffer
+while kbhit():
+	getch()
+
+########################
+# HSIO pin status check
+print
+print "HSIO pin status check"
+print "====================="
+dev.poke(HSIO_DIR, 0xff)
+ok = True
+while ok:
+	print "Status:",
+	r = ~dev.peek(HSIO_PIN)
+	if r & 8:	print "4",
+	if r & 4:	print "3",
+	if r & 2:	print "2",
+	if r & 1:	print "1",
+	# Clreol followed by CR
+	print "\033[K\r",
+
+	if kbhit():
+		ok = False
+
+# flush keyboard buffer
+while kbhit():
+	getch()
+
+print
 print
 

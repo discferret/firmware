@@ -59,6 +59,9 @@ FIXEDAA					= 0x33
 CLOCK_TICKER			= 0x34
 CLOCK_TICKER_PLL		= 0x35
 
+HSIO_DIR				= 0xE0	# HSIO bit-bang pin direction
+HSIO_PIN				= 0xE1	# HSIO pins
+
 STEP_RATE				= 0xF0	# step rate, 250us per count
 STEP_CMD				= 0xFF	# step command, bit7=direction, rest=num steps
 
