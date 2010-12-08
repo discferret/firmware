@@ -9,7 +9,7 @@ from discferret import *
 
 #############################################################################
 
-LoadFPGA = True
+InitFPGA = True
 
 #############################################################################
 
@@ -21,60 +21,8 @@ if not dev.open():
 else:
 	print "Device opened successfully"
 
-if LoadFPGA:
-	print "Initialising FPGA...",
-	# FPGA LOAD INIT -- start a microcode load
-	resp = dev.fpgaLoadBegin()
-	if resp == ERR_OK:
-		print "OK!",
-	else:
-		print "Failed with status code %d" % resp
-		sys.exit(-1)
-
-	# poll fpga status
-	resp = dev.fpgaGetLoadStatus()
-	if resp == ERR_FPGA_NOT_CONF:
-		print "(FPGA is waiting for microcode load)"
-	elif resp == ERR_OK:
-		print "(FPGA microcode is active)"
-	else:
-		print "FPGA status code unknown, is %d, wanted %d or %d" % (resp, ERR_OK, ERR_FPGA_NOT_CONF)
-		sys.exit(-1)
-
-	# load RBF file
-	try:
-		f = open("microcode.rbf", "rb")
-		rbfstr = f.read()
-		if len(rbfstr) < 1:
-			raise -1
-		f.close()
-	except:
-		print "Microcode file read error"
-		sys.exit(-1)
-
-	print "RBF file contains %d data bytes" % len(rbfstr)
-
-	# bitswap the RBF file
-	rbf = list()
-	for x in range(len(rbfstr)):
-		rbf.append(bitswap(struct.unpack('B', rbfstr[x])[0]))
-
-	# now send the RBF to the PIC
-	pos = 0
-	while pos < len(rbf):
-		# if we have more than 62 bytes to send, then send the first 62
-		if (len(rbf)-pos) > 62:
-			i = 62
-		else:
-			i = (len(rbf)-pos)
-
-		resp = dev.fpgaLoadBlock(rbf[pos:pos+i])
-		if resp != ERR_OK:
-			print "FPGA microcode block transfer failed at addr=%04X, err=%d" % (pos, resp)
-			sys.exit(-1)
-
-		# update pointer
-		pos += i
+if InitFPGA:
+	print "FPGA load: status code %d" % dev.fpgaLoadRBFFile("microcode.rbf")
 
 # poll fpga status
 print "Load complete. FPGA status:",
