@@ -47,7 +47,14 @@ print snb
 packet = [CMD_PROGRAM_SERIAL, 0xAC, 0xCE, 0x55, 0xE5] + snb
 dev.write(1, packet)
 resp = dev.read(0x81, 1)
-print "Programmed; response: %d" % resp[0]
+if (resp == 0):
+	print "ID block successfully programmed."
+elif (resp == 1):
+	print "ID block already programmed; existing values not changed."
+elif (resp == 4):
+	print "Bad magic number. This should never happen!"
+else:
+	print "Unknown error code: %d" % resp[0]
 
 print
 print
