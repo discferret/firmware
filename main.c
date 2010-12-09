@@ -993,9 +993,17 @@ void ProcessIO(void)
 				INPacket[counter++] = ERR_OK;
 				// Read board revision ID
 				TBLPTR = 0xFF0;
+				j = 0;	// "empty ID" flag
 				for (i=0; i<4; i++) {
 					_asm tblrdpostinc _endasm;
 					INPacket[counter++] = TABLAT;
+					if ((TABLAT != 0x00) && (TABLAT != 0xFF)) j = 1;
+				}
+				// Replace hardware version with valid ASCII if it isn't set
+				if (!j) {
+					for (i=0; i<4; i++) {
+						INPacket[counter-i-1] = '?';
+					}
 				}
 
 				// Firmware version (constant, set at top of this source file)
