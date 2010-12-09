@@ -37,6 +37,10 @@
 #include "USB/usb_function_generic.h"
 
 /** CONFIGURATION **************************************************/
+// Firmware version number -- NOTE: bump this whenever the USB protocol
+// is changed.
+#define FIRMWARE_VERSION 0x001A
+
 #if defined(PLATFORM_DISCFERRET)
 	// DiscFerret Magnetic Disc Analyser
 	#pragma config	XINST	= OFF			// extended instruction set off
@@ -987,12 +991,18 @@ void ProcessIO(void)
 
 			case CMD_GET_VERSION:	// Read hardware/firmware/microcode version info
 				INPacket[counter++] = ERR_OK;
-				INPacket[counter++] = '0';			// Hardware rev
-				INPacket[counter++] = 'I';
-				INPacket[counter++] = '0';
-				INPacket[counter++] = '6';
-				INPacket[counter++] = 0x00;			// Firmware version hi
-				INPacket[counter++] = 0x1A;			// Firmware version lo
+				// Read board revision ID
+				TBLPTR = 0xFF0;
+				for (i=0; i<4; i++) {
+					_asm tblrdpostinc _endasm;
+					INPacket[counter++] = TABLAT;
+				}
+
+				// Firmware version (constant, set at top of this source file)
+				INPacket[counter++] = FIRMWARE_VERSION >> 8;	// Firmware version hi
+				INPacket[counter++] = FIRMWARE_VERSION & 0xFF;	// Firmware version lo
+
+				// Microcode type and version (read from FPGA)
 				PMP_ADDR_SETW(R_MICROCODE_TYPE_H);	// Microcode type hi
 				INPacket[counter++] = PMP_READ();
 				PMP_ADDR_SETW(R_MICROCODE_TYPE_L);	// Microcode type lo
