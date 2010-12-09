@@ -3,9 +3,19 @@
 from discferret import *
 import sys
 
-if len(sys.argv) < 3:
+needhelp = False
+if (len(sys.argv) == 2) and (sys.argv[1].lower() == '--help'):
+	needhelp = True
+elif len(sys.argv) == 1:
+	needhelp = True
+elif (len(sys.argv) < 3) and (sys.argv[1].lower() != '--info'):
+	needhelp = True
+
+if needhelp:
 	print "Syntax: %s serialnumber hardwarerevision" % sys.argv[0]
 	print "Example: %s 0I06 GB0L0801" % sys.argv[0]
+	print "%s --help: display this help screen" % sys.argv[0]
+	print "%s --info: display device info" % sys.argv[0]
 	print
 	sys.exit(-1)
 
@@ -16,6 +26,17 @@ if not dev.open():
 	sys.exit(-1)
 else:
 	print "Device opened successfully"
+
+if sys.argv[1].lower() == '--info':
+	print "Device information:"
+	devinfo = dev.getDeviceInfo()
+	for k in devinfo:
+		if k in ['microcode_ver', 'firmware_ver', 'microcode_type']:
+			print "\t%s:\t0x%04X" % (k, devinfo[k])
+		else:
+			print "\t%s:\t%s" % (k, devinfo[k])
+	print
+	sys.exit(0)
 
 # Make sure command line parameters are valid
 if len(sys.argv[1]) > 4:
@@ -41,21 +62,17 @@ for i in serialnum:
 	snb[pos] = i
 	pos = pos + 1
 
-print snb
-
 # Build a "Program Serial Number" packet
 packet = [CMD_PROGRAM_SERIAL, 0xAC, 0xCE, 0x55, 0xE5] + snb
 dev.write(1, packet)
 resp = dev.read(0x81, 1)
-if (resp == 0):
+if (resp[0] == 0):
 	print "ID block successfully programmed."
-elif (resp == 1):
+elif (resp[0] == 1):
 	print "ID block already programmed; existing values not changed."
-elif (resp == 4):
+elif (resp[0] == 4):
 	print "Bad magic number. This should never happen!"
 else:
 	print "Unknown error code: %d" % resp[0]
 
 print
-print
-
