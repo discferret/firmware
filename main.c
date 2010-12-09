@@ -920,9 +920,56 @@ void ProcessIO(void)
 
 			case CMD_PROGRAM_SERIAL:	// Program Serial Number
 				if ((OUTPacket[1] == 0xAC) && (OUTPacket[2] == 0xCE) &&
-					(OUTPacket[3] == 0x55) && (OUTPacket[4] == 0xED))
+					(OUTPacket[3] == 0x55) && (OUTPacket[4] == 0xE5))
 				{
-					// Do a single-word program for the serial number block
+					int pos;
+					int isblank = 1;
+
+					// Make sure the System ID Block is empty
+					TBLPTR = 0xFF0;
+					for (pos=0; pos<16; pos++) {
+						_asm tblrdpostinc _endasm;
+						if (TABLAT != 0xFF) {
+							isblank = 0;
+							break;
+						}
+					}
+
+					if (!isblank) {
+						// Bzzkt! SID block isn't empty. Kick the user out.
+						// Basically, you need a PIC programmer to get a second chance (by reflashing the bootloader)
+						INPacket[counter++] = ERR_HARDWARE_ERROR;
+					} else {
+						// Do a single-word program for the 16-byte serial number block
+						pos = 5;
+						while (pos < (5+16)) {		// 16 bytes of data, starting from buffer pos 5
+							// Set flash write pointer
+							TBLPTR = 0xFF0 + pos - 5;
+	
+							// Load flash data word into holding latch
+							TABLAT = OUTPacket[pos++];
+							_asm tblwtpostinc _endasm;
+							TABLAT = OUTPacket[pos++];
+							_asm tblwt _endasm;
+	
+							// Write!
+							EECON1bits.WPROG = 1;		// Write single words
+							EECON1bits.WREN = 1;		// Enable program memory writes
+							INTCONbits.GIE = 0;			// Disable interrupts
+							_asm						// Magic write sequence
+								MOVLW 0x55
+								MOVWF EECON2, 0
+								MOVLW 0xAA
+								MOVWF EECON2, 0
+								BSF EECON1, 1, 0
+							_endasm;
+							INTCONbits.GIE = 1;			// Re-enable interrupts
+							EECON1bits.WPROG = 0;		// Disable program memory writes
+							EECON1bits.WREN = 0;		// Disable memory writes
+						}
+
+						INPacket[counter++] = ERR_OK;
+					}
 				} else {
 					// Magic number invalid. Bah!
 					INPacket[counter++] = ERR_BAD_MAGIC;
