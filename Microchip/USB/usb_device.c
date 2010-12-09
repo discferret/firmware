@@ -1795,6 +1795,8 @@ void USBStdFeatureReqHandler(void)
  *******************************************************************/
 void USBStdGetDscHandler(void)
 {
+	static unsigned char serialNum[34];
+
     if(SetupPkt.bmRequestType == 0x80)
     {
         inPipes[0].info.Val = USB_EP0_ROM | USB_EP0_BUSY | USB_EP0_INCLUDE_ZERO;
@@ -1823,20 +1825,68 @@ void USBStdGetDscHandler(void)
                 inPipes[0].wCount.byte.HB = *(inPipes[0].pSrc.bRom+3);
                 break;
             case USB_DESCRIPTOR_STRING:
-                //USB_NUM_STRING_DESCRIPTORS was introduced as optional in release v2.3.  In v2.4 and
-                //  later it is now manditory.  This should be defined in usb_config.h and should
-                //  indicate the number of string descriptors.
-                if(SetupPkt.bDscIndex<USB_NUM_STRING_DESCRIPTORS)
-                {
-                    //Get a pointer to the String descriptor requested
-                    inPipes[0].pSrc.bRom = *(USB_SD_Ptr+SetupPkt.bDscIndex);
-                    // Set data count
-                    inPipes[0].wCount.Val = *inPipes[0].pSrc.bRom;                    
-                }
-                else
-                {
-                    inPipes[0].info.Val = 0;
-                }
+				if (SetupPkt.bDscIndex != 0xFF) {
+					// Get string descriptor from ROM
+	                //USB_NUM_STRING_DESCRIPTORS was introduced as optional in release v2.3.  In v2.4 and
+	                //  later it is now manditory.  This should be defined in usb_config.h and should
+	                //  indicate the number of string descriptors.
+	                if(SetupPkt.bDscIndex<USB_NUM_STRING_DESCRIPTORS)
+	                {
+	                    //Get a pointer to the String descriptor requested
+	                    inPipes[0].pSrc.bRom = *(USB_SD_Ptr+SetupPkt.bDscIndex);
+	                    // Set data count
+	                    inPipes[0].wCount.Val = *inPipes[0].pSrc.bRom;                    
+	                }
+	                else
+	                {
+	                    inPipes[0].info.Val = 0;
+	                }
+				} else {
+					unsigned char i, j;
+					// Get "special" serial number string descriptor
+					// Read serial number block into RAM
+					TBLPTR = 0xFF0 + 4;		// +4 skips Board ID
+					j = 0;	// clear "serial number block present" flag
+					i = 2;	// skip length bit
+					while ((TBLPTR < 0x1000) && (i < 32)) {
+						_asm tblrdpostinc _endasm;
+						serialNum[i++] = TABLAT;
+						serialNum[i++] = 0;
+						// set "serial number present" flag if this byte is non-null
+						if ((TABLAT != 0xFF) && (TABLAT != 0x00)) j = 1;
+					}
+
+					// If there is a serial number...
+					if (j) {
+						// ... figure out how long it is
+						for (i=30; i>0; i-=2) {
+							if ((serialNum[i] != 0x00) && (serialNum[i] != 0xff)) break;
+						}
+						// set length byte
+						serialNum[0] = i+2;
+						// set type byte
+						serialNum[1] = 0x03;
+						// set parameters for USB transfer
+						inPipes[0].pSrc.bRam = serialNum;
+						inPipes[0].wCount.Val = serialNum[0];
+						inPipes[0].info.bits.ctrl_trf_mem = USB_EP0_RAM;
+					} else {
+						// No serial number.
+						serialNum[0] = 10;	// descriptor length
+						serialNum[1] = 3;	// string descriptor
+						serialNum[2] = '?';
+						serialNum[3] = 0;
+						serialNum[4] = '?';
+						serialNum[5] = 0;
+						serialNum[6] = '?';
+						serialNum[7] = 0;
+						serialNum[8] = '?';
+						serialNum[9] = 0;
+						inPipes[0].pSrc.bRam = serialNum;
+						inPipes[0].wCount.Val = serialNum[0];
+						inPipes[0].info.bits.ctrl_trf_mem = USB_EP0_RAM;
+					}
+				}
                 break;
             default:
                 inPipes[0].info.Val = 0;

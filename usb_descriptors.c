@@ -176,7 +176,7 @@ ROM USB_DEVICE_DESCRIPTOR device_dsc=
     0x0000,                 // Device release number in BCD format
     0x01,                   // Manufacturer string index
     0x02,                   // Product string index
-    0x00,                   // Device serial number string index
+    0xff,                   // Device serial number string index
     0x01                    // Number of possible configurations
 };
 
