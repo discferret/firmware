@@ -1844,6 +1844,10 @@ void USBStdGetDscHandler(void)
 				} else {
 					unsigned char i, j;
 					// Get "special" serial number string descriptor
+					// Clear serial number block
+					for (i=0; i<sizeof(serialNum); i++) {
+						serialNum[i] = 0;
+					}
 					// Read serial number block into RAM
 					TBLPTR = 0xFF0 + 4;		// +4 skips Board ID
 					j = 0;	// clear "serial number block present" flag
