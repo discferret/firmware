@@ -51,6 +51,17 @@ if len(sys.argv[2]) > 12:
 serialnum = sys.argv[2].upper().ljust(12, '\0')[:12]
 hwrev = sys.argv[1].upper().ljust(4, '\0')[:4]
 
+# Check the serial number against Windows Plug and Play requirements
+i=0
+for c in serialnum:
+	# Byte values less than 0x20 are invalid.
+	# Byte values greater than 0x7F are invalid.
+	# Byte value 0x2C is invalid."
+	if (c < '\x20') or (c > '\x7F') or (c == '\x2C'):
+		print "ERROR: Invalid character in serial number string, offset %d" % (i+1)
+		sys.exit(-1)
+	i = i + 1
+
 # Build the serial number block
 snb = ['\0']*16
 pos = 0
