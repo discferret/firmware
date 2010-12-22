@@ -347,18 +347,32 @@ class DiscFerret:
 			return False
 
 	def ramWrite(self, block):
-		# TODO: multipacket writing taking into account max chunk size
+		blksz = 61
 		if self.features['fast_ram_rw']:
-			# TODO: raise exception if len(block) > 64KiB
+			# Note that we can go as far as 65536 bytes, but that means the
+			# last packet will be only 3 bytes long, which is rather wasteful.
+			blksz = 65533	# 65536 byte max block size, less the three byte header
+		pos = 0
+		lp = len(block)
+		while lp > 0:
+			if lp >= blksz:
+				self._ramWrite_internal(block[pos:pos+blksz])
+				lp = lp - blksz
+				pos = pos + blksz
+			else:
+				self._ramWrite_internal(block[pos:])
+				lp = 0
+
+	# RAM Write -- internal, private function. Don't call this from external code!
+	def _ramWrite_internal(self, block):
+		if self.features['fast_ram_rw']:
 			lb = len(block) - 1
-			print "FAST mode write: %d" % lb
 			packet = [CMD_RAM_WRITE_FAST, lb & 0xff, (lb >> 8) & 0xff]
 			packet.extend(block)
 			self.write(1, packet)
 			resp = self.read(0x81, 1)
 			return resp[0]
 		else:
-			# TODO: raise exception if len(block) > 61
 			packet = [CMD_RAM_WRITE, len(block) & 0xff, (len(block) >> 8) & 0xff]
 			packet.extend(block)
 			self.write(1, packet)
@@ -366,8 +380,24 @@ class DiscFerret:
 			return resp[0]
 
 	def ramRead(self, nbytes):
+		blksz = 64
 		if self.features['fast_ram_rw']:
-			# TODO: raise exception if len(block) > 64KiB
+			blksz = 65536	# 65536 byte max block size for a read
+		lp = nbytes
+		ramdata = []
+		while lp > 0:
+			if lp >= blksz:
+				data = self._ramRead_internal(blksz)
+				lp = lp - blksz
+			else:
+				data = self._ramRead_internal(lp)
+				lp = 0
+			ramdata.extend(data)
+		return ramdata
+
+	# RAM Read -- internal, private function. Don't call this from external code!
+	def _ramRead_internal(self, nbytes):
+		if self.features['fast_ram_rw']:
 			lb = nbytes - 1
 			packet = [CMD_RAM_READ_FAST, lb & 0xff, (lb >> 8) & 0xff]
 			self.write(1, packet)
@@ -377,7 +407,6 @@ class DiscFerret:
 			else:
 				return resp
 		else:
-			# TODO: raise exception if nbytes > 64
 			packet = [CMD_RAM_READ, nbytes & 0xff, (nbytes >> 8) & 0xff]
 			self.write(1, packet)
 			resp = self.read(0x81, nbytes+1)

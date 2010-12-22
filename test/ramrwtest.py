@@ -50,29 +50,24 @@ print dev.getDeviceInfo()
 
 print "set addr to zero, resp: %d" % dev.setRAMAddr(0)
 print "current ram address: 0x%06X" % dev.getRAMAddr()
-dblk = range(256) * (64*1024 / 256)
+dblk = range(256) * (128*1024 / 256)
 print "write %d byte block:" % len(dblk)
-lp = len(dblk)
-"""
-pos = 0
-while lp > 0:
-	if lp >= 61:
-		data = dev.ramWrite(dblk[pos:pos+61])
-		lp = lp - 61
-		pos = pos + 61
-	else:
-		data = dev.ramWrite(dblk[pos:])
-		lp = 0
-"""
+t1 = time.time()
 dev.ramWrite(dblk)
+te = time.time() - t1
+print "elapsed clock time: %0.3f" % te
+print "%d bytes in %0.3f secs = %0.3f bytes/sec" % (len(dblk), te, len(dblk) / te)
 print "current ram address: 0x%06X" % dev.getRAMAddr()
 print
 
 print "set addr to zero, resp: %d" % dev.setRAMAddr(0)
 print "current ram address: 0x%06X" % dev.getRAMAddr()
-by=len(dblk)
-print "read %d byte block:" % by
-k = dev.ramRead(by)
+print "read %d byte block:" % len(dblk)
+t1 = time.time()
+k = dev.ramRead(len(dblk))
+te = time.time() - t1
+print "elapsed clock time: %0.3f" % te
+print "%d bytes in %0.3f secs = %0.3f bytes/sec" % (len(dblk), te, len(dblk) / te)
 print "current ram address: 0x%06X" % dev.getRAMAddr()
 
 print "compare...",
