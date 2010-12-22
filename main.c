@@ -76,7 +76,7 @@
 
 unsigned char OUTPacket[64];	//User application buffer for receiving and holding OUT packets sent from the host
 unsigned char INPacket[64];		//User application buffer for sending IN packets to the host
-unsigned char INPacketB[64];	//User application buffer for sending IN packets to the host
+unsigned char SparePacket[64];
 #pragma udata
 USB_HANDLE USBGenericOutHandle;
 USB_HANDLE USBGenericInHandle;
@@ -786,29 +786,51 @@ void ProcessIO(void)
 				PMP_ADDR_SETW(R_SRAM_DATA);
 
 				// Start by writing the payload data in this packet
-				if (shifter > 0) {
-					// If payload larger than EP size, then it straddles a packet.
-					j = (shifter > (USBGEN_EP_SIZE-3)) ? USBGEN_EP_SIZE-3 : shifter;
-					for (i=3; i<(j+3); i++) {
-						//PMP_WRITE(OUTPacket[i]);
-						PMDIN1L = OUTPacket[i];
-					}
-					shifter -= j;
+				// If payload larger than EP size, then it straddles a packet.
+				j = (shifter > (USBGEN_EP_SIZE-3)) ? USBGEN_EP_SIZE-3 : shifter;
+				for (i=3; i<(j+3); i++) {
+					//PMP_WRITE(OUTPacket[i]);
+					PMDIN1L = OUTPacket[i];
 				}
+				shifter -= j;
 
 				// Any more data?
-				while (shifter > 0) {
-					// Arm the OUT endpoint ready to receive a new data packet
-					USBGenericOutHandle = USBGenRead(USBGEN_EP_NUM,(BYTE*)&OUTPacket,USBGEN_EP_SIZE);
-					// Wait for data
-					while (USBHandleBusy(USBGenericOutHandle));
+				if (shifter > 0) {
+					// Arm the OUT endpoint ready to receive a new data packet (into BUF0)
+					bufp = OUTPacket;
+					USBGenericOutHandle = USBGenRead(USBGEN_EP_NUM,(BYTE*)bufp,USBGEN_EP_SIZE);
 
-					j = (shifter > USBGEN_EP_SIZE) ? USBGEN_EP_SIZE : shifter;
-					for (i=0; i<j; i++) {
-						//PMP_WRITE(OUTPacket[i]);
-						PMDIN1L = OUTPacket[i];
+					// Wait for data to arrive -- we need at least one full buffer to work with
+					while (USBHandleBusy(USBGenericOutHandle));
+					
+					while (shifter > 0) {
+						// Figure out how much data we have left
+						j = (shifter > USBGEN_EP_SIZE) ? USBGEN_EP_SIZE : shifter;
+
+						// Update the counter
+						shifter -= j;
+
+						// If there's more data to send after this, start the second buffer filling while we send this one
+						if (shifter > 0) {
+							if (bufp == OUTPacket)
+								USBGenericOutHandle = USBGenRead(USBGEN_EP_NUM,(BYTE*)&SparePacket,(shifter > USBGEN_EP_SIZE) ? USBGEN_EP_SIZE : shifter);
+							else
+								USBGenericOutHandle = USBGenRead(USBGEN_EP_NUM,(BYTE*)&OUTPacket,(shifter > USBGEN_EP_SIZE) ? USBGEN_EP_SIZE : shifter);
+						}
+
+						// Send the data we have
+						for (i=0; i<j; i++) {
+							//PMP_WRITE(OUTPacket[i]);
+							PMDIN1L = bufp[i];
+						}
+
+						// Wait for data to fill the Other buffer (if necessary)
+						if (shifter > 0)
+							while (USBHandleBusy(USBGenericOutHandle));
+
+						// Swap buffers around
+						bufp = (bufp == OUTPacket) ? SparePacket : OUTPacket;
 					}
-					shifter -= j;
 				}
 
 				// Success!
@@ -842,7 +864,7 @@ void ProcessIO(void)
 					USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)bufp, i);
 					shifter -= (unsigned long)i;
 					// flip to the other buffer
-					bufp = (bufp == INPacket) ? INPacketB : INPacket;
+					bufp = (bufp == INPacket) ? SparePacket : INPacket;
 				}
 				counter = 0;
 				break;
