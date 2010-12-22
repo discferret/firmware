@@ -347,7 +347,7 @@ class DiscFerret:
 			return False
 
 	def ramWrite(self, block):
-		blksz = 61
+		blksz = 61			# 64 byte packet size, less one command and two address bytes
 		if self.features['fast_ram_rw']:
 			# Note that we can go as far as 65536 bytes, but that means the
 			# last packet will be only 3 bytes long, which is rather wasteful.
@@ -380,9 +380,9 @@ class DiscFerret:
 			return resp[0]
 
 	def ramRead(self, nbytes):
-		blksz = 64
+		blksz = 63			# 64 bytes max packet size for version 0x001A, less the status byte
 		if self.features['fast_ram_rw']:
-			blksz = 65536	# 65536 byte max block size for a read
+			blksz = 65536	# 65536 byte max block size for a read on 0x001B firmware, no status byte
 		lp = nbytes
 		ramdata = []
 		while lp > 0:
