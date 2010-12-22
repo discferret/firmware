@@ -135,6 +135,8 @@ CMD_RAM_ADDR_SET	= 6
 CMD_RAM_ADDR_GET	= 7
 CMD_RAM_WRITE		= 8
 CMD_RAM_READ		= 9
+CMD_RAM_WRITE_FAST	= 10
+CMD_RAM_READ_FAST	= 11
 CMD_RESET			= 0xFB
 CMD_SECRET_SQUIRREL	= 0xFC
 CMD_PROGRAM_SERIAL	= 0xFD
@@ -191,6 +193,14 @@ class DiscFerret:
 			self.handle.setConfiguration(self.conf)
 			self.handle.claimInterface(self.intf)
 			self.handle.setAltInterface(self.intf)
+
+			# Pull the firmware version number and set the feature support flags
+			self.features = dict()
+			self.features['fast_ram_rw'] = False		# Fast RAM R/W
+			version = self.getDeviceInfo()['firmware_ver']
+			if version >= 0x001B:
+				# Release 1B (second firmware revision)
+				self.features['fast_ram_rw'] = True
 			return True
 		except:
 			return False
@@ -337,22 +347,44 @@ class DiscFerret:
 			return False
 
 	def ramWrite(self, block):
-		# TODO: raise exception if len(block) > 61
-		packet = [CMD_RAM_WRITE, len(block) & 0xff, (len(block) >> 8) & 0xff]
-		packet.extend(block)
-		self.write(1, packet)
-		resp = self.read(0x81, 1)
-		return resp[0]
+		# TODO: multipacket writing taking into account max chunk size
+		if self.features['fast_ram_rw']:
+			# TODO: raise exception if len(block) > 64KiB
+			lb = len(block) - 1
+			print "FAST mode write: %d" % lb
+			packet = [CMD_RAM_WRITE_FAST, lb & 0xff, (lb >> 8) & 0xff]
+			packet.extend(block)
+			self.write(1, packet)
+			resp = self.read(0x81, 1)
+			return resp[0]
+		else:
+			# TODO: raise exception if len(block) > 61
+			packet = [CMD_RAM_WRITE, len(block) & 0xff, (len(block) >> 8) & 0xff]
+			packet.extend(block)
+			self.write(1, packet)
+			resp = self.read(0x81, 1)
+			return resp[0]
 
 	def ramRead(self, nbytes):
-		# TODO: raise exception if nbytes > 64
-		packet = [CMD_RAM_READ, nbytes & 0xff, (nbytes >> 8) & 0xff]
-		self.write(1, packet)
-		resp = self.read(0x81, nbytes+1)
-		if resp[0] == ERR_OK:
-			return resp[1:]
+		if self.features['fast_ram_rw']:
+			# TODO: raise exception if len(block) > 64KiB
+			lb = nbytes - 1
+			packet = [CMD_RAM_READ_FAST, lb & 0xff, (lb >> 8) & 0xff]
+			self.write(1, packet)
+			resp = self.read(0x81, nbytes)
+			if len(resp) == 0:
+				return False
+			else:
+				return resp
 		else:
-			return False
+			# TODO: raise exception if nbytes > 64
+			packet = [CMD_RAM_READ, nbytes & 0xff, (nbytes >> 8) & 0xff]
+			self.write(1, packet)
+			resp = self.read(0x81, nbytes+1)
+			if resp[0] == ERR_OK:
+				return resp[1:]
+			else:
+				return False
 
 	def debug_dump_status(self):
 		a = self.peek(STATUS1)
