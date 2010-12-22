@@ -39,7 +39,7 @@
 /** CONFIGURATION **************************************************/
 // Firmware version number -- NOTE: bump this whenever the USB protocol
 // is changed.
-#define FIRMWARE_VERSION 0x001A
+#define FIRMWARE_VERSION 0x001B
 
 #if defined(PLATFORM_DISCFERRET)
 	// DiscFerret Magnetic Disc Analyser
@@ -483,6 +483,8 @@ enum {
 	CMD_RAM_ADDR_GET	= 7,
 	CMD_RAM_WRITE		= 8,
 	CMD_RAM_READ		= 9,
+	CMD_RAM_WRITE_FAST	= 10,
+	CMD_RAM_READ_FAST	= 11,
 	CMD_RESET			= 0xfb,
 	CMD_SECRET_SQUIRREL	= 0xfc,
 	CMD_PROGRAM_SERIAL	= 0xfd,
@@ -754,6 +756,7 @@ void ProcessIO(void)
 					INPacket[counter++] = ERR_INVALID_LEN;
 					break;
 				}
+
 				// Select RAM Access port
 				PMP_ADDR_SETW(R_SRAM_DATA);
 
@@ -771,6 +774,70 @@ void ProcessIO(void)
 				// Success!
 				INPacket[0] = ERR_OK;
 				counter = i+1;
+				break;
+
+			case CMD_RAM_WRITE_FAST:	// Write a block of data to RAM, Fast mode
+				// Accepts: CMD_RAM_WRITE_FAST lenLo lenHi payload
+				// Returns: status
+				shifter = ((unsigned int)OUTPacket[2] << 8) + (unsigned int)OUTPacket[1] + 1L;
+				// Select RAM Access port
+				PMP_ADDR_SETW(R_SRAM_DATA);
+
+				// Start by writing the payload data in this packet
+				if (shifter > 0) {
+					// If payload larger than EP size, then it straddles a packet.
+					j = (shifter > (USBGEN_EP_SIZE-3)) ? USBGEN_EP_SIZE-3 : shifter;
+					for (i=3; i<(j+3); i++) {
+						PMP_WRITE(OUTPacket[i]);
+					}
+					shifter -= j;
+				}
+
+				// Any more data?
+				while (shifter > 0) {
+					// Arm the OUT endpoint ready to receive a new data packet
+					USBGenericOutHandle = USBGenRead(USBGEN_EP_NUM,(BYTE*)&OUTPacket,USBGEN_EP_SIZE);
+					// Wait for data
+					while (USBHandleBusy(USBGenericOutHandle));
+
+					j = (shifter > USBGEN_EP_SIZE) ? USBGEN_EP_SIZE : shifter;
+					for (i=0; i<j; i++) {
+						PMP_WRITE(OUTPacket[i]);
+					}
+					shifter -= j;
+				}
+
+				// Success!
+				INPacket[0] = ERR_OK;
+				counter = 1;
+				break;
+
+			case CMD_RAM_READ_FAST:		// Read a block of data from RAM and return it, Fast mode
+				// Accepts: CMD_RAM_READ_FAST lenLo lenHi
+				// Returns: payload
+				shifter = ((unsigned long)OUTPacket[2] << 8) + (unsigned long)OUTPacket[1] + 1L;
+
+				// Select RAM Access port
+				PMP_ADDR_SETW(R_SRAM_DATA);
+
+				// RAM address recently set?
+				if (ramread_discard_first) {
+					// Flush the PMD read pipeline
+					j = PMDIN1L;
+					ramread_discard_first = 0;
+				}
+
+				while (shifter > 0) {
+					i = (shifter > USBGEN_EP_SIZE) ? USBGEN_EP_SIZE : shifter;
+					for (j=0; j<i; j++)
+					{
+						INPacket[j] = PMDIN1L;
+					}
+					USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)&INPacket, i);
+					while (USBHandleBusy(USBGenericInHandle));
+					shifter -= (unsigned long)i;
+				}
+				counter = 0;
 				break;
 
 			case CMD_RESET:				// Hard Reset
