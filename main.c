@@ -76,6 +76,7 @@
 
 unsigned char OUTPacket[64];	//User application buffer for receiving and holding OUT packets sent from the host
 unsigned char INPacket[64];		//User application buffer for sending IN packets to the host
+unsigned char INPacketB[64];	//User application buffer for sending IN packets to the host
 #pragma udata
 USB_HANDLE USBGenericOutHandle;
 USB_HANDLE USBGenericInHandle;
@@ -613,6 +614,7 @@ void ProcessIO(void)
 	unsigned int i, j;
 	unsigned long shifter;
 	static char ramread_discard_first = 1;
+	unsigned char *bufp;
 
     //User Application USB tasks below.
     //Note: The user application should not begin attempting to read/write over the USB
@@ -829,15 +831,18 @@ void ProcessIO(void)
 					ramread_discard_first = 0;
 				}
 
+				bufp = INPacket;
 				while (shifter > 0) {
 					i = (shifter > USBGEN_EP_SIZE) ? USBGEN_EP_SIZE : shifter;
 					for (j=0; j<i; j++)
 					{
-						INPacket[j] = PMDIN1L;
+						bufp[j] = PMDIN1L;
 					}
-					USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)&INPacket, i);
 					while (USBHandleBusy(USBGenericInHandle));
+					USBGenericInHandle = USBGenWrite(USBGEN_EP_NUM, (BYTE*)bufp, i);
 					shifter -= (unsigned long)i;
+					// flip to the other buffer
+					bufp = (bufp == INPacket) ? INPacketB : INPacket;
 				}
 				counter = 0;
 				break;
