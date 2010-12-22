@@ -788,7 +788,8 @@ void ProcessIO(void)
 					// If payload larger than EP size, then it straddles a packet.
 					j = (shifter > (USBGEN_EP_SIZE-3)) ? USBGEN_EP_SIZE-3 : shifter;
 					for (i=3; i<(j+3); i++) {
-						PMP_WRITE(OUTPacket[i]);
+						//PMP_WRITE(OUTPacket[i]);
+						PMDIN1L = OUTPacket[i];
 					}
 					shifter -= j;
 				}
@@ -802,7 +803,8 @@ void ProcessIO(void)
 
 					j = (shifter > USBGEN_EP_SIZE) ? USBGEN_EP_SIZE : shifter;
 					for (i=0; i<j; i++) {
-						PMP_WRITE(OUTPacket[i]);
+						//PMP_WRITE(OUTPacket[i]);
+						PMDIN1L = OUTPacket[i];
 					}
 					shifter -= j;
 				}
