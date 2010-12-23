@@ -56,8 +56,9 @@ i=0
 for c in serialnum:
 	# Byte values less than 0x20 are invalid.
 	# Byte values greater than 0x7F are invalid.
-	# Byte value 0x2C is invalid."
-	if (c < '\x20') or (c > '\x7F') or (c == '\x2C'):
+	# Byte value 0x2C is invalid.
+	# But byte value 0x00 (NULL) is valid, because the PIC uses that as a terminator
+	if ((c < '\x20') or (c > '\x7F') or (c == '\x2C')) and (c != '\x00'):
 		print "ERROR: Invalid character in serial number string, offset %d" % (i+1)
 		sys.exit(-1)
 	i = i + 1
