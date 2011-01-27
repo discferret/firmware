@@ -58,7 +58,7 @@ for x in range(((512*1024)/5)-128):	# leave some space for the header and traile
 	dblk.append(0x02)				# WRITE PULSE
 dblk.append(0x00)					# SET WR GATE = 0x00
 dblk.append(0x00)					# SET WR GATE = 0x00
-dblk.append(0x7f)					# STOP
+dblk.append(0x3f)					# STOP
 
 # write to ram
 dev.setRAMAddr(0)
@@ -82,8 +82,8 @@ print
 print "select: resp %d" % dev.poke(DRIVE_CONTROL, DRIVE_CONTROL_DS0 | DRIVE_CONTROL_DS1 | DRIVE_CONTROL_DS2 | DRIVE_CONTROL_DS3 | DRIVE_CONTROL_MOTEN)# | DRIVE_CONTROL_SIDESEL)
 time.sleep(3)
 """
-# seek to track 40
-print "seek to 40: resp %d" % dev.poke(STEP_CMD, STEP_CMD_AWAYFROM_ZERO | (10 & STEP_COUNT_MASK))
+# seek to track 10
+print "seek to 10: resp %d" % dev.poke(STEP_CMD, STEP_CMD_AWAYFROM_ZERO | (10 & STEP_COUNT_MASK))
 dev.debug_dump_status()
 stat = STATUS2_STEPPING
 while (stat & STATUS2_STEPPING) != 0:
