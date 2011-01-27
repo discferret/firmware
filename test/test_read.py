@@ -141,7 +141,7 @@ else:
 print "set step rate: resp %d" % dev.poke(STEP_RATE, 9000/250)
 
 # select drive 0 (PC cable -- DS2=MOTEN iirc)
-print "select: resp %d" % dev.poke(DRIVE_CONTROL, DRIVE_CONTROL_DS0 | DRIVE_CONTROL_DS1 | DRIVE_CONTROL_DS2 | DRIVE_CONTROL_DS3 | DRIVE_CONTROL_MOTEN | DRIVE_CONTROL_SIDESEL)
+print "select: resp %d" % dev.poke(DRIVE_CONTROL, DRIVE_CONTROL_DS0 | DRIVE_CONTROL_DS1 | DRIVE_CONTROL_DS2 | DRIVE_CONTROL_DS3 | DRIVE_CONTROL_MOTEN) # | DRIVE_CONTROL_SIDESEL)
 time.sleep(3)
 
 # seek to track zero
