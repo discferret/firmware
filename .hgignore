@@ -1,0 +1,12 @@
+syntax: glob
+*~
+.*.sw?
+*.bak
+*.orig
+*.cof
+*.hex
+*.map
+*.mcw
+obj/*.o
+test/dat
+test/dat.*
