@@ -1,5 +1,5 @@
+# set final image size
 set term png size 1024, 768
-set output "dat.histogram.png"
 
 ## Making histograms within gnuplot - from http://www.inference.phy.cam.ac.uk/teaching/comput/C++/examples/gnuplot/index.shtml
 #bin_width = 1.0; ## edit this 
