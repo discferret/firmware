@@ -62,16 +62,7 @@ dblk.append(0x3f)					# STOP
 
 # write to ram
 dev.setRAMAddr(0)
-lp = len(dblk)
-pos = 0
-while lp > 0:
-	if lp >= 61:
-		data = dev.ramWrite(dblk[pos:pos+61])
-		lp = lp - 61
-		pos = pos + 61
-	else:
-		data = dev.ramWrite(dblk[pos:])
-		lp = 0
+dev.ramWrite(dblk)
 
 # abort any currently running acquisition
 print "abort acquisition: %d" % dev.poke(ACQCON, ACQCON_ABORT)

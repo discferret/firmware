@@ -198,16 +198,7 @@ print "acquired %d bytes of data" % (nbytes)
 
 # now save the RAM data
 dev.setRAMAddr(0)
-lp = nbytes
-ramdata = []
-while lp > 0:
-	if lp >= 63:
-		data = dev.ramRead(63)
-		lp = lp - 63
-	else:
-		data = dev.ramRead(lp)
-		lp = 0
-	ramdata.extend(data)
+ramdata = dev.ramRead(nbytes)
 
 f=open("dat.bin", "wb")
 g=open("dat", "wt")
@@ -226,6 +217,7 @@ pos=0
 cdat=[]
 for x in ramdata:
 	if (x&0x7f)==0:
+		# TODO: maybe this needs to be 127 (see bad_cpc_disc scatter graph)
 		carry += 128
 	else:
 		s = s + ("%d %d\n" % (pos, carry + (x & 0x7f)))
