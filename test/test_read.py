@@ -195,9 +195,9 @@ dev.debug_dump_status()
 time.sleep(1)
 
 # get index freq
-ixfrq = dev.peek(0x40) << 8;
-ixfrq = ixfrq + dev.peek(0x41);
-print "** measured index frequency: %d" % ixfrq
+ixfrq = dev.peek(INDEX_FREQ_HI) << 8;
+ixfrq = ixfrq + dev.peek(INDEX_FREQ_LO);
+print "** measured index frequency: %d counts" % ixfrq
 print "** equals: %d microseconds, or %f milliseconds (%f RPM)" % (ixfrq * 250, ixfrq * 0.250, (60/(ixfrq * 0.000250)))
 
 # start acquisition

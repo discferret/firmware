@@ -59,6 +59,9 @@ FIXEDAA					= 0x33
 CLOCK_TICKER			= 0x34
 CLOCK_TICKER_PLL		= 0x35
 
+INDEX_FREQ_HI			= 0x40	# Index frequency, high byte (reading this reg latches INDEX_FREQ_LO)
+INDEX_FREQ_LO			= 0x41	# Index frequency, low  byte (read INDEX_FREQ_HI first!!!)
+
 HSIO_DIR				= 0xE0	# HSIO bit-bang pin direction
 HSIO_PIN				= 0xE1	# HSIO pins
 
