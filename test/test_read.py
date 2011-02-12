@@ -108,8 +108,8 @@ print "abort acquisition: %d" % dev.poke(ACQCON, ACQCON_ABORT)
 dev.debug_dump_status()
 print
 
-MFM_SYNC=False
-if MFM_SYNC:
+SYNC_MODE="hstmd"
+if SYNC_MODE == "mfm":
 	# Demo of MFM-synched start/stop for 3.5in DSDD (720K) discs
 	# set start/stop sync words to 0x4489
 	print "set start mfm hi: resp %d" % dev.poke(MFM_SYNCWORD_START_H, 0x44)
@@ -127,6 +127,23 @@ if MFM_SYNC:
 	print "set stop  event: resp %d" % dev.poke(ACQ_STOP_EVT, ACQ_EVENT_MFM)
 	print "set stop  count: resp %d" % dev.poke(ACQ_STOP_NUM, 31)
 	print "set mfm clock rate: resp %d" % dev.poke(MFM_CLKSEL, MFM_CLKSEL_250KBPS)
+elif SYNC_MODE == "hstmd":
+	# start event: HSTMD
+	# 1rpm = 1 rev in 60 secs. convert to Hz.
+	# 300RPM rotation speed, 10 sectors, 500us resolution
+	# then multiply by 0.75 to find worst-case minimum sector time
+	threshold = ((60.0/300.0)/10.0) * 0.75
+	print "hstmd threshold: %f secs" % threshold
+	threshold = int(threshold / 500.0e-6)
+	print "hstmd threshold ival: %d counts" % threshold
+	print "set hstmd start thr: %d" % dev.poke(ACQ_HSTMD_THR_START, threshold)
+	print "set hstmd stop  thr: %d" % dev.poke(ACQ_HSTMD_THR_STOP, threshold)
+	# start event: HSTMD detect, second instance
+	print "set start event: resp %d" % dev.poke(ACQ_START_EVT, ACQ_EVENT_IMMEDIATE | ACQ_EVENT_WAIT_HSTMD)
+	print "set start count: resp %d" % dev.poke(ACQ_START_NUM, 1)
+	# stop event: index pulse, 12th instance
+	print "set stop  event: resp %d" % dev.poke(ACQ_STOP_EVT, ACQ_EVENT_INDEX)
+	print "set stop  count: resp %d" % dev.poke(ACQ_STOP_NUM, 11)
 else:
 	# start event: index pulse, second instance
 	print "set start event: resp %d" % dev.poke(ACQ_START_EVT, ACQ_EVENT_INDEX)
@@ -135,13 +152,16 @@ else:
 	print "set stop  event: resp %d" % dev.poke(ACQ_STOP_EVT, ACQ_EVENT_INDEX)
 	print "set stop  count: resp %d" % dev.poke(ACQ_STOP_NUM, 0)
 
-# HSTMD thresholds don't need to be set
-
 # set step rate to 9ms
 print "set step rate: resp %d" % dev.poke(STEP_RATE, 9000/250)
 
 # select drive 0 (PC cable -- DS2=MOTEN iirc)
-print "select: resp %d" % dev.poke(DRIVE_CONTROL, DRIVE_CONTROL_DS0 | DRIVE_CONTROL_DS1 | DRIVE_CONTROL_DS2 | DRIVE_CONTROL_DS3 | DRIVE_CONTROL_MOTEN) # | DRIVE_CONTROL_SIDESEL)
+# -- PC drive A
+#print "select: resp %d" % dev.poke(DRIVE_CONTROL, DRIVE_CONTROL_DS0 | DRIVE_CONTROL_DS2)
+# -- BBC Micro drive 0
+print "select: resp %d" % dev.poke(DRIVE_CONTROL, DRIVE_CONTROL_DS0 | DRIVE_CONTROL_MOTEN)
+# -- Shotgun (Select All)
+#print "select: resp %d" % dev.poke(DRIVE_CONTROL, DRIVE_CONTROL_DS0 | DRIVE_CONTROL_DS1 | DRIVE_CONTROL_DS2 | DRIVE_CONTROL_DS3 | DRIVE_CONTROL_MOTEN) # | DRIVE_CONTROL_SIDESEL)
 time.sleep(3)
 
 # seek to track zero
@@ -173,6 +193,12 @@ dev.debug_dump_status()
 """
 # head settling time
 time.sleep(1)
+
+# get index freq
+ixfrq = dev.peek(0x40) << 8;
+ixfrq = ixfrq + dev.peek(0x41);
+print "** measured index frequency: %d" % ixfrq
+print "** equals: %d microseconds, or %f milliseconds (%f RPM)" % (ixfrq * 250, ixfrq * 0.250, (60/(ixfrq * 0.000250)))
 
 # start acquisition
 print "start acq: resp %d" % dev.poke(ACQCON, ACQCON_START)
