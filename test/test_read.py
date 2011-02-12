@@ -108,7 +108,7 @@ print "abort acquisition: %d" % dev.poke(ACQCON, ACQCON_ABORT)
 dev.debug_dump_status()
 print
 
-SYNC_MODE="hstmd"
+SYNC_MODE="index"
 if SYNC_MODE == "mfm":
 	# Demo of MFM-synched start/stop for 3.5in DSDD (720K) discs
 	# set start/stop sync words to 0x4489
@@ -141,9 +141,9 @@ elif SYNC_MODE == "hstmd":
 	# start event: HSTMD detect, second instance
 	print "set start event: resp %d" % dev.poke(ACQ_START_EVT, ACQ_EVENT_IMMEDIATE | ACQ_EVENT_WAIT_HSTMD)
 	print "set start count: resp %d" % dev.poke(ACQ_START_NUM, 1)
-	# stop event: index pulse, 12th instance
+	# stop event: index pulse, 11th instance. 10 sectors, but the 10th has a half-sector mark
 	print "set stop  event: resp %d" % dev.poke(ACQ_STOP_EVT, ACQ_EVENT_INDEX)
-	print "set stop  count: resp %d" % dev.poke(ACQ_STOP_NUM, 11)
+	print "set stop  count: resp %d" % dev.poke(ACQ_STOP_NUM, 10)
 else:
 	# start event: index pulse, second instance
 	print "set start event: resp %d" % dev.poke(ACQ_START_EVT, ACQ_EVENT_INDEX)
