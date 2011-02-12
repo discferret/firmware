@@ -195,10 +195,8 @@ dev.debug_dump_status()
 time.sleep(1)
 
 # get index freq
-ixfrq = dev.peek(INDEX_FREQ_HI) << 8;
-ixfrq = ixfrq + dev.peek(INDEX_FREQ_LO);
-print "** measured index frequency: %d counts" % ixfrq
-print "** equals: %d microseconds, or %f milliseconds (%f RPM)" % (ixfrq * 250, ixfrq * 0.250, (60/(ixfrq * 0.000250)))
+print "** measured drive rotation speed: %f RPM" % dev.getIndexFrequency(True)
+print "** measured drive rotation time:  %f ms" % (dev.getIndexTime(False) * 1.0e3)
 
 # start acquisition
 print "start acq: resp %d" % dev.poke(ACQCON, ACQCON_START)
