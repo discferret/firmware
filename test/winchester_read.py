@@ -144,6 +144,10 @@ time.sleep(1)
 seek(dev, 100)
 time.sleep(1)
 
+# get index freq
+print "** measured drive rotation speed: %f RPM" % dev.getIndexFrequency(True)
+print "** measured drive rotation time:  %f ms" % (dev.getIndexTime(False) * 1.0e3)
+
 # start acquisition
 print "start acq: resp %d" % dev.poke(ACQCON, ACQCON_START)
 # dump status
