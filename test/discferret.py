@@ -112,6 +112,7 @@ MFM_CLKSEL_125KBPS		= 0x03
 
 # -----
 # Status bits
+STATUS1_NEW_INDEX		= 0x08		# new index measurement in timer register
 STATUS1_ACQSTATUS_MASK	= 0x07
 STATUS1_ACQ_WRITING		= 0x04
 STATUS1_ACQ_WAITING		= 0x02
@@ -196,17 +197,35 @@ class DiscFerret:
 			self.handle.setConfiguration(self.conf)
 			self.handle.claimInterface(self.intf)
 			self.handle.setAltInterface(self.intf)
-
-			# Pull the firmware version number and set the feature support flags
-			self.features = dict()
-			self.features['fast_ram_rw'] = False		# Fast RAM R/W
-			version = self.getDeviceInfo()['firmware_ver']
-			if version >= 0x001B:
-				# Release 1B (second firmware revision)
-				self.features['fast_ram_rw'] = True
+			# Set feature flags
+			self.__set_features()
 			return True
 		except:
 			return False
+
+	### Pull the firmware and microcode version numbers and set the feature support flags
+	def __set_features(self):
+		self.features = dict()
+		self.features['fast_ram_rw'] = False		# Fast RAM R/W
+		self.features['index_freq_detect'] = False	# Index frequency measurement
+		self.features['index_freq_multi'] = 0		# Index frequency multiplier
+		self.features['index_flag'] = False
+		self.devinfo = self.getDeviceInfo()
+		fwversion = self.devinfo['firmware_ver']
+		if fwversion >= 0x001B:
+			# Release 1B (second firmware revision)
+			self.features['fast_ram_rw'] = True
+		if self.devinfo['microcode_type'] == 0xDD55:
+			# Baseline microcode
+			if self.devinfo['microcode_ver'] >= 0x001F:
+				# Microcode 1F or greater
+				self.features['index_freq_detect'] = True
+				self.features['index_freq_multi'] = 250e-6
+			if self.devinfo['microcode_ver'] >= 0x0020:
+				# Microcode versions >= 0x20 use a 10us counter for index freq
+				# and have a 'measurement available' indicator flag
+				self.features['index_freq_multi'] = 10e-6
+				self.features['index_flag'] = True
 
 	def write(self, ep, buff, timeout = 1000):
 		try:
@@ -302,6 +321,8 @@ class DiscFerret:
 		if (self.fpgaGetLoadStatus() != ERR_OK):
 			return ERR_FPGA_REFUSED_CONF
 		else:
+			# update feature flags for new microcode
+			self.__set_features()
 			return ERR_OK
 
 	def fpgaLoadRBFFile(self, filename):
@@ -481,4 +502,29 @@ class DiscFerret:
 		packet = [CMD_RESET, 0xDE, 0xAD, 0xBE, 0xEF]
 		self.write(1, packet)
 		return ERR_OK
+
+	### Get index time in seconds
+	def getIndexTime(self, wait):
+		# bail out if the index frequency can't be detected
+		if not self.features['index_freq_detect']:
+			return False
+		# wait for a new measurement if we've been asked to do so
+		if wait and self.features['index_flag']:
+			while ((self.peek(STATUS1) & STATUS1_NEW_INDEX) == 0):
+				pass
+		# get the time measurement
+		ixfrq = self.peek(INDEX_FREQ_HI) << 8
+		ixfrq = ixfrq + self.peek(INDEX_FREQ_LO)
+		print "##debug: ixfrq = %d" % ixfrq
+		# convert to seconds and return it
+		return (ixfrq * self.features['index_freq_multi'])
+
+	### Get index frequency in RPM
+	def getIndexFrequency(self, wait):
+		ixtm = self.getIndexTime(wait)
+		# bail out if the index frequency can't be detected
+		if ixtm == False:
+			return False
+		# convert time measurement to RPM and return it
+		return 60.0 / ixtm
 
