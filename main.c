@@ -39,7 +39,7 @@
 /** CONFIGURATION **************************************************/
 // Firmware version number -- NOTE: bump this whenever the USB protocol
 // is changed.
-#define FIRMWARE_VERSION 0x001B
+#define FIRMWARE_VERSION 0x001C
 
 #if defined(PLATFORM_DISCFERRET)
 	// DiscFerret Magnetic Disc Analyser
