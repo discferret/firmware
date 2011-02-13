@@ -247,12 +247,18 @@ int main(void)
 {   
     InitializeSystem();
 
-    #if defined(USB_INTERRUPT)
-        USBDeviceAttach();
-    #endif
-
     while(1)
     {
+		#if defined(USB_INTERRUPT)
+			if (USB_BUS_SENSE) {
+				// Let USB stack know that the USB cable is attached.
+				USBDeviceAttach();
+			} else {
+				// User pulled the USB cable out. Tell the USB stack...
+				USBDeviceDetach();
+			}
+        #endif
+
         #if defined(USB_POLLING)
 		// Check bus status and service USB interrupts.
         USBDeviceTasks(); // Interrupt or polling method.  If using polling, must call
