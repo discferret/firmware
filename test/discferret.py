@@ -112,6 +112,7 @@ MFM_CLKSEL_125KBPS		= 0x03
 
 # -----
 # Status bits
+STATUS1_TRACK0_HIT		= 0x10
 STATUS1_NEW_INDEX		= 0x08		# new index measurement in timer register
 STATUS1_ACQSTATUS_MASK	= 0x07
 STATUS1_ACQ_WRITING		= 0x04
@@ -454,6 +455,11 @@ class DiscFerret:
 		else:
 			s = "ILLEGAL, "
 
+		if (a & STATUS1_TRACK0_HIT) == STATUS1_TRACK0_HIT:
+			s = s + "T0HIT "
+		if (a & STATUS1_NEW_INDEX) == STATUS1_NEW_INDEX:
+			s = s + "NEWIDX "
+
 		# STATUS2
 		if (b & STATUS2_INDEX):
 			s = s + "INDEX "
@@ -515,7 +521,6 @@ class DiscFerret:
 		# get the time measurement
 		ixfrq = self.peek(INDEX_FREQ_HI) << 8
 		ixfrq = ixfrq + self.peek(INDEX_FREQ_LO)
-		print "##debug: ixfrq = %d" % ixfrq
 		# convert to seconds and return it
 		return (ixfrq * self.features['index_freq_multi'])
 
